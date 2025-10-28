@@ -1,109 +1,116 @@
 /* ====== 基本レイアウト ====== */
 :root{
-  --fg:#2b3a3f;           /* 文字色 */
-  --bg:#ffffff;           /* 背景色 */
-  --teal:#2f8e8e;         /* 見出し・アクセント */
-  --muted:#6b7b80;        /* サブテキスト */
-  --card:#f6fbfb;         /* うすい背景 */
-  --border:#cfe6e6;       /* うすいボーダー */
+  --fg:#2b3a3f;      /* 文字色 */
+  --bg:#ffffff;      /* 背景色 */
+  --teal:#2f8e8e;    /* 見出し・アクセント */
+  --muted:#6b7b80;   /* サブテキスト */
+  --card:#f6fbfb;    /* うすい背景 */
+  --border:#cfe6e6;  /* うすいボーダー */
 }
 
 *{ box-sizing:border-box; }
+
 html,body{
   margin:0;
   padding:0;
   background:var(--bg);
   color:var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-               "Hiragino Kaku Gothic ProN", "Hiragino Sans",
-               "Noto Sans JP", "Yu Gothic UI", "YuGothic", Meiryo, sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+              "Hiragino Kaku Gothic ProN","Hiragino Sans",
+              "Noto Sans JP","Yu Gothic UI","YuGothic",Meiryo,sans-serif;
   line-height:1.75;
   -webkit-font-smoothing:antialiased;
 }
 
-main, .container{
-  max-width: 1080px;
-  padding: 24px 20px 80px;
-  margin: 0 auto;
+main,.container{
+  max-width:1080px;
+  padding:24px 20px 80px;
+  margin:0 auto;
 }
 
 /* ====== 見出し ====== */
 h1{
-  font-size: clamp(28px, 4.2vw, 56px);
-  font-weight: 800;
-  color: var(--teal);
-  letter-spacing: .02em;
-  margin: 10px 0 18px;
+  font-size:clamp(28px,4.2vw,56px);
+  font-weight:800;
+  color:var(--teal);
+  letter-spacing:.02em;
+  margin:10px 0 18px;
   line-height:1.2;
-  border-bottom: 6px dashed rgba(47,142,142,.55);
-  padding-bottom: 14px;
+  border-bottom:6px dashed rgba(47,142,142,.55);
+  padding-bottom:14px;
 }
-
 h2{
-  font-size: clamp(20px, 2.8vw, 28px);
-  margin: 28px 0 10px;
-  color: var(--teal);
+  font-size:clamp(20px,2.8vw,28px);
+  margin:28px 0 10px;
+  color:var(--teal);
 }
 
 /* ====== 段落・リンク ====== */
-p{ margin: 10px 0 14px; }
-a{ color: var(--teal); text-underline-offset:2px; }
+p{ margin:10px 0 14px; }
+a{ color:var(--teal); text-underline-offset:2px; }
 a:hover{ opacity:.85; }
 
 /* ====== リスト（★スタイル） ====== */
-ul{
-  list-style: none;
-  padding-left: 0;
-  margin: 14px 0 18px;
-}
+ul{ list-style:none; padding-left:0; margin:14px 0 18px; }
 li{
-  position: relative;
-  padding-left: 1.8em;
-  margin: .35em 0;
+  position:relative;
+  padding-left:1.8em;
+  margin:.35em 0;
 }
 li::before{
-  content: "★";
-  position: absolute;
-  left: 0;
-  top: .05em;
-  color: var(--teal);
-  font-weight: 700;
+  content:"★";
+  position:absolute; left:0; top:.05em;
+  color:var(--teal); font-weight:700;
 }
 
-/* ====== インラインコード・コードブロック ====== */
+/* ====== インラインコード ====== */
 code{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-               "Courier New", "Noto Sans Mono CJK JP", monospace;
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: .15em .38em;
-  border-radius: .35rem;
-  font-size: .95em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",
+               "Courier New","Noto Sans Mono CJK JP",monospace;
+  background:var(--card);
+  border:1px solid var(--border);
+  padding:.15em .38em;
+  border-radius:.35rem;
+  font-size:.95em;
 }
 
+/* ====== コードブロック（読みやすい黒背景／白枠なし） ====== */
 pre{
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 14px 16px;
-  border-radius: .6rem;
+  background:#0f1720;          /* 黒めの背景 */
+  color:#e6edf3;               /* 明るい文字 */
+  border:1px solid #1f2a37;
+  border-radius:12px;
+  padding:16px 18px;
   overflow:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",
+               "Courier New","Noto Sans Mono CJK JP",monospace;
+  font-size:.95rem;
+  line-height:1.7;
+}
+/* pre 内の code は装飾を外す（白枠を消す） */
+pre code{
+  background:transparent;
+  border:none;
+  padding:0;
+  border-radius:0;
+  color:inherit;
 }
 
 /* ====== ちょい見栄え強化用のボックス ====== */
 .note{
-  background: var(--card);
-  border-left: 6px solid var(--teal);
-  padding: 12px 14px;
-  margin: 18px 0;
-  border-radius: .4rem;
-  color: var(--muted);
+  background:var(--card);
+  border-left:6px solid var(--teal);
+  padding:12px 14px;
+  margin:18px 0;
+  border-radius:.4rem;
+  color:var(--muted);
 }
 
-/* ====== テーブル（必要なら） ====== */
+/* ====== テーブル ====== */
 table{
   width:100%;
-  border-collapse: collapse;
-  margin: 14px 0 20px;
+  border-collapse:collapse;
+  margin:14px 0 20px;
 }
 th,td{
   border:1px solid var(--border);
@@ -118,30 +125,9 @@ th{
 /* ====== 画像 ====== */
 img{ max-width:100%; height:auto; display:block; }
 
-/* ====== 小さめ画面向けの微調整 ====== */
+/* ====== 小画面調整 ====== */
 @media (max-width:580px){
-  .container{ padding: 18px 14px 56px; }
-  li{ padding-left: 1.6em; }
+  .container{ padding:18px 14px 56px; }
+  li{ padding-left:1.6em; }
 }
-
-/* ===== コードブロックを読みやすく（黒背景＆中の白枠オフ） ===== */
-pre{
-  background:#0f1720;      /* 黒めの背景 */
-  color:#e6edf3;           /* 文字は明るく */
-  border:1px solid #1f2a37;
-  border-radius:12px;
-  padding:16px 18px;
-  overflow:auto;
-}
-
-/* pre 内はインライン用の装飾を無効化（白い囲いを消す） */
-pre code{
-  background:transparent;
-  border:none;
-  padding:0;
-  border-radius:0;
-  color:inherit;           /* 親の色を使う */
-}
-
-/* インラインコード（本文中の短い code）は今まで通り */
-
+　
