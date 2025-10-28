@@ -123,3 +123,25 @@ img{ max-width:100%; height:auto; display:block; }
   .container{ padding: 18px 14px 56px; }
   li{ padding-left: 1.6em; }
 }
+
+/* ===== コードブロックを読みやすく（黒背景＆中の白枠オフ） ===== */
+pre{
+  background:#0f1720;      /* 黒めの背景 */
+  color:#e6edf3;           /* 文字は明るく */
+  border:1px solid #1f2a37;
+  border-radius:12px;
+  padding:16px 18px;
+  overflow:auto;
+}
+
+/* pre 内はインライン用の装飾を無効化（白い囲いを消す） */
+pre code{
+  background:transparent;
+  border:none;
+  padding:0;
+  border-radius:0;
+  color:inherit;           /* 親の色を使う */
+}
+
+/* インラインコード（本文中の短い code）は今まで通り */
+
