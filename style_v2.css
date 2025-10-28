@@ -1,0 +1,125 @@
+/* ====== 基本レイアウト ====== */
+:root{
+  --fg:#2b3a3f;           /* 文字色 */
+  --bg:#ffffff;           /* 背景色 */
+  --teal:#2f8e8e;         /* 見出し・アクセント */
+  --muted:#6b7b80;        /* サブテキスト */
+  --card:#f6fbfb;         /* うすい背景 */
+  --border:#cfe6e6;       /* うすいボーダー */
+}
+
+*{ box-sizing:border-box; }
+html,body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+               "Noto Sans JP", "Yu Gothic UI", "YuGothic", Meiryo, sans-serif;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+
+main, .container{
+  max-width: 1080px;
+  padding: 24px 20px 80px;
+  margin: 0 auto;
+}
+
+/* ====== 見出し ====== */
+h1{
+  font-size: clamp(28px, 4.2vw, 56px);
+  font-weight: 800;
+  color: var(--teal);
+  letter-spacing: .02em;
+  margin: 10px 0 18px;
+  line-height:1.2;
+  border-bottom: 6px dashed rgba(47,142,142,.55);
+  padding-bottom: 14px;
+}
+
+h2{
+  font-size: clamp(20px, 2.8vw, 28px);
+  margin: 28px 0 10px;
+  color: var(--teal);
+}
+
+/* ====== 段落・リンク ====== */
+p{ margin: 10px 0 14px; }
+a{ color: var(--teal); text-underline-offset:2px; }
+a:hover{ opacity:.85; }
+
+/* ====== リスト（★スタイル） ====== */
+ul{
+  list-style: none;
+  padding-left: 0;
+  margin: 14px 0 18px;
+}
+li{
+  position: relative;
+  padding-left: 1.8em;
+  margin: .35em 0;
+}
+li::before{
+  content: "★";
+  position: absolute;
+  left: 0;
+  top: .05em;
+  color: var(--teal);
+  font-weight: 700;
+}
+
+/* ====== インラインコード・コードブロック ====== */
+code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+               "Courier New", "Noto Sans Mono CJK JP", monospace;
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: .15em .38em;
+  border-radius: .35rem;
+  font-size: .95em;
+}
+
+pre{
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  border-radius: .6rem;
+  overflow:auto;
+}
+
+/* ====== ちょい見栄え強化用のボックス ====== */
+.note{
+  background: var(--card);
+  border-left: 6px solid var(--teal);
+  padding: 12px 14px;
+  margin: 18px 0;
+  border-radius: .4rem;
+  color: var(--muted);
+}
+
+/* ====== テーブル（必要なら） ====== */
+table{
+  width:100%;
+  border-collapse: collapse;
+  margin: 14px 0 20px;
+}
+th,td{
+  border:1px solid var(--border);
+  padding:10px 12px;
+}
+th{
+  background:#eef7f7;
+  color:#255f5f;
+  text-align:left;
+}
+
+/* ====== 画像 ====== */
+img{ max-width:100%; height:auto; display:block; }
+
+/* ====== 小さめ画面向けの微調整 ====== */
+@media (max-width:580px){
+  .container{ padding: 18px 14px 56px; }
+  li{ padding-left: 1.6em; }
+}
