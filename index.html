@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- 新CSS。キャッシュ回避のために ?v=20251028 を付けている -->
+    <!-- 新CSS（キャッシュ回避クエリ付き） -->
     <link rel="stylesheet" href="style_v2.css?v=20251028">
 
     <title>sie2020aのポートフォリオ</title>
@@ -12,9 +12,18 @@
   </head>
   <body>
     <main class="container">
+      <header style="margin-bottom:16px">
+        <!-- ここは“このリポジトリ内”のページへの相対リンク -->
+        <nav>
+          <a href="./">Home</a>
+          <!-- 例: サブページがあれば -->
+          <!-- <a href="linux-io.html">Linuxメモ</a> -->
+        </nav>
+      </header>
+
       <h1>sie2020a</h1>
 
-      <!-- プロフィール画像（幅は必要なら数値を変えてOK） -->
+      <!-- プロフィール画像（index.html と同じ階層に profile_image.png を置く） -->
       <img src="profile_image.png" alt="sie2020a のプロフィール画像" width="280">
 
       <h2>About</h2>
@@ -32,22 +41,10 @@
 
       <h3>Skills</h3>
       <table>
-        <tr>
-          <th>OS</th>
-          <td>Windows, Ubuntu など</td>
-        </tr>
-        <tr>
-          <th>Engine, Frameworks</th>
-          <td>Node.js, Express など</td>
-        </tr>
-        <tr>
-          <th>Tool, MiddleWare</th>
-          <td>Git, PostgreSQL など</td>
-        </tr>
-        <tr>
-          <th>資格・免許</th>
-          <td>情報処理技術者、LPIC など</td>
-        </tr>
+        <tr><th>OS</th><td>Windows, Ubuntu など</td></tr>
+        <tr><th>Engine, Frameworks</th><td>Node.js, Express など</td></tr>
+        <tr><th>Tool, MiddleWare</th><td>Git, PostgreSQL など</td></tr>
+        <tr><th>資格・免許</th><td>情報処理技術者、LPIC など</td></tr>
       </table>
 
       <h3>Works</h3>
@@ -76,18 +73,9 @@
       <h3>History</h3>
       <p>学歴、職歴、アルバイト、インターン経験など。</p>
       <table>
-        <tr>
-          <th>2019 年</th>
-          <td><a href="https://dwango.co.jp/">株式会社ドワンゴ</a> 入社</td>
-        </tr>
-        <tr>
-          <th>2018 年</th>
-          <td>学校法人角川ドワンゴ学園 <a href="https://nnn.ed.jp/">N高等学校</a> 卒業</td>
-        </tr>
-        <tr>
-          <th>20XX 年</th>
-          <td>表彰、受賞歴、メディア掲載記事などあれば</td>
-        </tr>
+        <tr><th>2019 年</th><td><a href="https://dwango.co.jp/">株式会社ドワンゴ</a> 入社</td></tr>
+        <tr><th>2018 年</th><td>学校法人角川ドワンゴ学園 <a href="https://nnn.ed.jp/">N高等学校</a> 卒業</td></tr>
+        <tr><th>20XX 年</th><td>表彰、受賞歴、メディア掲載記事などあれば</td></tr>
       </table>
     </main>
   </body>
