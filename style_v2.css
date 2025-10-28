@@ -77,7 +77,7 @@ code{
 /* ====== コードブロック（読みやすい黒背景／白枠なし） ====== */
 pre{
   background:#0f1720;          /* 黒めの背景 */
-  color:#e6edf3;               /* 明るい文字 */
+  color:#2b3a3f;               /* 明るい文字 */
   border:1px solid #1f2a37;
   border-radius:12px;
   padding:16px 18px;
