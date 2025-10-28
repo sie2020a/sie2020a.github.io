@@ -1,18 +1,89 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Linux入出力メモ</title>
+  <title>Linux 標準入出力・リダイレクト・パイプ</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    main{max-width:980px;margin:40px auto;padding:0 16px;line-height:1.9}
+    h1{font-size:clamp(28px,6vw,56px);border-bottom:6px dotted #2e8f8f;padding-bottom:8px;color:#2e8f8f}
+    h2{margin-top:32px;color:#2e8f8f}
+    code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f5f5f7;border-radius:6px;padding:.1em .35em}
+    pre{background:#0b1020;color:#e6e6e6;padding:14px;border-radius:10px;overflow:auto}
+    .tip{background:#eefaf9;border-left:6px solid #2e8f8f;padding:10px 14px;border-radius:6px}
+    ul.star>li{list-style:"★ " inside}
+  </style>
 </head>
 <body>
+<main>
   <h1>Linux 標準入出力・リダイレクト・パイプ</h1>
-  <ul>
-    <li>標準入力 / 標準出力 / 標準エラー出力</li>
-    <li>リダイレクト: <code>&gt;</code>, <code>&gt;&gt;</code>, <code>2&gt;</code>, <code>2&gt;&amp;1</code></li>
-    <li>パイプ: <code>|</code></li>
-    <li>コマンド: <code>cat</code>, <code>less</code>, <code>head</code>, <code>tail</code>, <code>grep</code></li>
+
+  <ul class="star">
+    <li><b>標準入力 / 標準出力 / 標準エラー出力</b></li>
+    <li><b>リダイレクト</b>：<code>&gt;</code>, <code>&gt;&gt;</code>, <code>2&gt;</code>, <code>2&gt;&amp;1</code></li>
+    <li><b>パイプ</b>：<code>|</code>（前のコマンドの出力→次のコマンドの入力）</li>
+    <li><b>コマンド</b>：<code>cat</code>, <code>less</code>, <code>head</code>, <code>tail</code>, <code>grep</code></li>
   </ul>
+
+  <h2>1. 標準入出力のイメージ</h2>
+  <div class="tip">
+    コマンドは「入口1つ（標準入力）」「出口2つ（標準出力・標準エラー）」を持つ。  
+    画面に普通に出るのが標準出力、エラーメッセージが標準エラー。
+  </div>
+
+  <h2>2. リダイレクト（出力をファイルへ）</h2>
+  <pre><code># 一覧をファイルへ保存
+ls &gt; a/ls-output.txt
+
+# 追記（上書きしない）
+echo "追加" &gt;&gt; a/ls-output.txt
+
+# エラーだけを保存
+rm not_exist 2&gt; errors.txt
+
+# 標準出力と標準エラーをまとめて保存
+somecmd &gt; all.txt 2&gt;&amp;1</code></pre>
+
+  <h2>3. ファイル表示コマンド</h2>
+  <pre><code># ファイル中身を表示（連結も可）
+cat ls-output.txt
+
+# ページ送りで表示（J:下 / K:上 / Q:終了）
+less ls-output.txt
+
+# 先頭・末尾だけ
+head -5 ls-output.txt
+tail -10 ls-output.txt</code></pre>
+
+  <h2>4. パイプ（コマンドをつなぐ）</h2>
+  <pre><code># /bin の一覧をページ送りで見る
+ls /bin | less
+
+# "ss" を含む行だけ抽出
+ls /bin | grep ss
+
+# "apt" を含まないものだけ
+ls /bin | grep -v apt</code></pre>
+
+  <h2>5. 練習</h2>
+  <div class="tip">
+    <b>課題：</b>「/bin にある項目のうち <code>apt</code> を含まないもの」を  
+    <code>~/io-study/non-apt-command.txt</code> に保存せよ。
+  </div>
+  <pre><code># 例解答
+mkdir -p ~/io-study
+ls /bin | grep -v apt &gt; ~/io-study/non-apt-command.txt
+head ~/io-study/non-apt-command.txt</code></pre>
+
+  <h2>チートシート（超要約）</h2>
+  <pre><code># 出力→ファイル   &gt;（上書き）,  &gt;&gt;（追記）
+# エラー出力       2&gt; file
+# 両方まとめる     &gt; file 2&gt;&amp;1
+# パイプ           cmd1 | cmd2
+# 検索             grep PATTERN [FILE]</code></pre>
+
+  <p>戻る：<a href="/index.html">トップページへ</a></p>
+</main>
 </body>
 </html>
