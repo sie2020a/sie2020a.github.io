@@ -131,3 +131,27 @@ img{ max-width:100%; height:auto; display:block; }
   li{ padding-left:1.6em; }
 }
 　
+pre{
+  background:#0f1720;
+  color:#e6edf3;
+  border:1px solid #1f2a37;
+  border-radius:12px;
+  padding:16px 18px;
+  overflow:auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+               "Courier New", "Noto Sans Mono CJK JP", monospace;
+}
+pre code, pre code *{
+  background:transparent !important;
+  border:none !important;
+  padding:0 !important;
+  box-shadow:none !important;
+  color:inherit;
+}
+/* 本文中の短い code は従来のスタイルのまま */
+:not(pre) > code{
+  background:#f6fbfb;
+  border:1px solid #cfe6e6;
+  padding:.15em .38em;
+  border-radius:.35rem;
+}
