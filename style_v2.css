@@ -11,39 +11,24 @@
 *{ box-sizing:border-box; }
 
 html,body{
-  margin:0;
-  padding:0;
-  background:var(--bg);
-  color:var(--fg);
+  margin:0; padding:0;
+  background:var(--bg); color:var(--fg);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
               "Hiragino Kaku Gothic ProN","Hiragino Sans",
               "Noto Sans JP","Yu Gothic UI","YuGothic",Meiryo,sans-serif;
-  line-height:1.75;
-  -webkit-font-smoothing:antialiased;
+  line-height:1.75; -webkit-font-smoothing:antialiased;
 }
 
-main,.container{
-  max-width:1080px;
-  padding:24px 20px 80px;
-  margin:0 auto;
-}
+main,.container{ max-width:1080px; padding:24px 20px 80px; margin:0 auto; }
 
 /* ====== 見出し ====== */
 h1{
   font-size:clamp(28px,4.2vw,56px);
-  font-weight:800;
-  color:var(--teal);
-  letter-spacing:.02em;
-  margin:10px 0 18px;
-  line-height:1.2;
-  border-bottom:6px dashed rgba(47,142,142,.55);
-  padding-bottom:14px;
+  font-weight:800; color:var(--teal); letter-spacing:.02em;
+  margin:10px 0 18px; line-height:1.2;
+  border-bottom:6px dashed rgba(47,142,142,.55); padding-bottom:14px;
 }
-h2{
-  font-size:clamp(20px,2.8vw,28px);
-  margin:28px 0 10px;
-  color:var(--teal);
-}
+h2{ font-size:clamp(20px,2.8vw,28px); margin:28px 0 10px; color:var(--teal); }
 
 /* ====== 段落・リンク ====== */
 p{ margin:10px 0 14px; }
@@ -52,19 +37,11 @@ a:hover{ opacity:.85; }
 
 /* ====== リスト（★スタイル） ====== */
 ul{ list-style:none; padding-left:0; margin:14px 0 18px; }
-li{
-  position:relative;
-  padding-left:1.8em;
-  margin:.35em 0;
-}
-li::before{
-  content:"★";
-  position:absolute; left:0; top:.05em;
-  color:var(--teal); font-weight:700;
-}
+li{ position:relative; padding-left:1.8em; margin:.35em 0; }
+li::before{ content:"★"; position:absolute; left:0; top:.05em; color:var(--teal); font-weight:700; }
 
-/* ====== インラインコード ====== */
-code{
+/* ====== インラインコード（本文中の短い code） ====== */
+:not(pre) > code{
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",
                "Courier New","Noto Sans Mono CJK JP",monospace;
   background:var(--card);
@@ -74,53 +51,37 @@ code{
   font-size:.95em;
 }
 
-/* ====== コードブロック（読みやすい黒背景／白枠なし） ====== */
+/* ====== コードブロック（黒背景＆白枠なし） ====== */
 pre{
-  background:#0f1720;          /* 黒めの背景 */
-  color:#2b3a3f;               /* 明るい文字 */
+  background:#0f1720;     /* 背景 */
+  color:#e6edf3;          /* 文字色（明るめ） */
   border:1px solid #1f2a37;
   border-radius:12px;
   padding:16px 18px;
   overflow:auto;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",
                "Courier New","Noto Sans Mono CJK JP",monospace;
-  font-size:.95rem;
-  line-height:1.7;
+  font-size:.95rem; line-height:1.7;
 }
-/* pre 内の code は装飾を外す（白枠を消す） */
-pre code{
-  background:transparent;
-  border:none;
-  padding:0;
-  border-radius:0;
+/* pre 内の code の白枠を消す */
+pre code, pre code *{
+  background:transparent !important;
+  border:none !important;
+  padding:0 !important;
+  box-shadow:none !important;
   color:inherit;
 }
 
 /* ====== ちょい見栄え強化用のボックス ====== */
 .note{
-  background:var(--card);
-  border-left:6px solid var(--teal);
-  padding:12px 14px;
-  margin:18px 0;
-  border-radius:.4rem;
-  color:var(--muted);
+  background:var(--card); border-left:6px solid var(--teal);
+  padding:12px 14px; margin:18px 0; border-radius:.4rem; color:var(--muted);
 }
 
 /* ====== テーブル ====== */
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin:14px 0 20px;
-}
-th,td{
-  border:1px solid var(--border);
-  padding:10px 12px;
-}
-th{
-  background:#eef7f7;
-  color:#255f5f;
-  text-align:left;
-}
+table{ width:100%; border-collapse:collapse; margin:14px 0 20px; }
+th,td{ border:1px solid var(--border); padding:10px 12px; }
+th{ background:#eef7f7; color:#255f5f; text-align:left; }
 
 /* ====== 画像 ====== */
 img{ max-width:100%; height:auto; display:block; }
@@ -129,29 +90,4 @@ img{ max-width:100%; height:auto; display:block; }
 @media (max-width:580px){
   .container{ padding:18px 14px 56px; }
   li{ padding-left:1.6em; }
-}
-　
-pre{
-  background:#0f1720;
-  color:#e6edf3;
-  border:1px solid #1f2a37;
-  border-radius:12px;
-  padding:16px 18px;
-  overflow:auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
-               "Courier New", "Noto Sans Mono CJK JP", monospace;
-}
-pre code, pre code *{
-  background:transparent !important;
-  border:none !important;
-  padding:0 !important;
-  box-shadow:none !important;
-  color:inherit;
-}
-/* 本文中の短い code は従来のスタイルのまま */
-:not(pre) > code{
-  background:#f6fbfb;
-  border:1px solid #cfe6e6;
-  padding:.15em .38em;
-  border-radius:.35rem;
 }
