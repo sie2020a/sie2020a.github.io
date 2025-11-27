@@ -1,0 +1,267 @@
+mkdir -p ~/projects/dino-10min && cd ~/projects/dino-10min
+cat > index.html <<'EOF'
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Dino 10min</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0;background:#111;color:#eee;font-family:system-ui, -apple-system, sans-serif}
+    header{padding:12px 16px;background:#1a1a1a;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;justify-content:space-between}
+    .tm{font-size:12px;opacity:.8}
+    canvas{display:block;margin:0 auto;background:#222}
+    .hint{padding:8px 16px;font-size:14px;color:#bbb}
+    a{color:#7dd3fc}
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>Dino 10min</strong> — Space: ジャンプ / Enter: リスタート</div>
+    <div class="tm">“Chrome™ browser は Google LLC の登録商標です”</div>
+  </header>
+  <div class="hint">最初は四角で実装。あとで画像やBGMを差し替えできます。</div>
+  <canvas id="canvas" width="800" height="450"></canvas>
+
+  <script>
+    // ========= 基本セットアップ =========
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const game = {
+      counter: 0,
+      score: 0,
+      isGameOver: true,
+      timer: null,
+      enemys: [],
+      enemyCooldown: 0,
+      speedBase: 7, // 初期スピード
+    };
+
+    // ========= 初期化 =========
+    function init() {
+      game.counter = 0;
+      game.score = 0;
+      game.isGameOver = false;
+      game.enemys = [];
+      game.enemyCooldown = 20;
+      game.speedBase = 7;
+
+      createDino();
+      clearInterval(game.timer);
+      game.timer = setInterval(ticker, 30);
+      drawBanner("Ready? Spaceで開始");
+    }
+
+    // ========= 主役（恐竜） =========
+    function createDino() {
+      // 画像の代わりに矩形（幅48,高さ48）。原点は中心扱い。
+      game.dino = {
+        x: 100,
+        y: canvas.height - 24,   // 地面上（中心y）
+        moveY: 0,
+        width: 48,
+        height: 48,
+        color: "#34d399"
+      };
+    }
+
+    // ========= メインループ =========
+    function ticker() {
+      // 1) 画面クリア
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 2) 背景（地面）スクロールっぽい線
+      drawGround();
+
+      // 3) 敵生成（クールダウンが0なら抽選）
+      if (game.enemyCooldown <= 0 && Math.random() < 0.15) {
+        spawnEnemy();
+        // スコアが上がるほど次の湧きが早くなる
+        game.enemyCooldown = Math.max(10, 30 - Math.floor(game.score / 150));
+      } else {
+        game.enemyCooldown--;
+      }
+
+      // 4) 速度スケール
+      const spdScale = 1 + Math.min(1.5, game.score / 2000); // だんだん速く
+      const groundSpeed = game.speedBase * spdScale;
+
+      // 5) 移動
+      moveDino();
+      moveEnemys(groundSpeed);
+
+      // 6) 描画
+      drawDino();
+      drawEnemys();
+
+      // 7) 当たり判定
+      if (hitCheck()) {
+        gameOver();
+        return;
+      }
+
+      // 8) スコア更新
+      game.score += 1;
+      drawScore();
+
+      // 9) カウンタ更新
+      game.counter = (game.counter + 1) % 1000000;
+    }
+
+    // ========= 地面 =========
+    let groundOffset = 0;
+    function drawGround() {
+      groundOffset = (groundOffset + 6) % 40;
+      ctx.fillStyle = "#333";
+      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+
+      // 砂粒っぽいライン
+      ctx.strokeStyle = "#2a2a2a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = -groundOffset; x < canvas.width; x += 40) {
+        ctx.moveTo(x, canvas.height - 30);
+        ctx.lineTo(x + 20, canvas.height - 30);
+      }
+      ctx.stroke();
+    }
+
+    // ========= Dino 移動/描画 =========
+    function moveDino() {
+      const d = game.dino;
+      d.y += d.moveY;
+      const floorY = canvas.height - d.height / 2;
+
+      if (d.y >= floorY) {
+        d.y = floorY;
+        d.moveY = 0;
+      } else {
+        d.moveY += 3; // 重力
+      }
+    }
+
+    function drawDino() {
+      const d = game.dino;
+      ctx.fillStyle = d.color;
+      ctx.fillRect(d.x - d.width/2, d.y - d.height/2, d.width, d.height);
+
+      // 目
+      ctx.fillStyle = "#000";
+      ctx.fillRect(d.x + 10, d.y - 10, 6, 6);
+    }
+
+    // ========= 敵生成/移動/描画 =========
+    function spawnEnemy() {
+      const isBird = Math.random() < 0.35; // 鳥の確率
+      if (isBird) {
+        const h = 28;
+        const y = Math.random() * 120 + 180; // 中空
+        game.enemys.push({
+          type: "bird",
+          x: canvas.width + 30,
+          y,
+          width: 40,
+          height: h,
+          moveX: - (10 + Math.random()*4),
+          color: "#60a5fa"
+        });
+      } else {
+        const w = 30 + Math.floor(Math.random()*20);
+        const h = 50 + Math.floor(Math.random()*30);
+        game.enemys.push({
+          type: "cactus",
+          x: canvas.width + w/2,
+          y: canvas.height - h/2,
+          width: w,
+          height: h,
+          moveX: - (8 + Math.random()*3),
+          color: "#f59e0b"
+        });
+      }
+    }
+
+    function moveEnemys(groundSpeed) {
+      for (const e of game.enemys) {
+        e.x += e.moveX * (groundSpeed / 7); // ベース速度でスケール
+      }
+      // 画面外を破棄
+      game.enemys = game.enemys.filter(e => e.x > -e.width);
+    }
+
+    function drawEnemys() {
+      for (const e of game.enemys) {
+        ctx.fillStyle = e.color;
+        ctx.fillRect(e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+      }
+    }
+
+    // ========= 当たり判定（ゆるめ調整） =========
+    function hitCheck() {
+      const d = game.dino;
+      for (const e of game.enemys) {
+        const hitX = Math.abs(d.x - e.x) < (d.width*0.8/2 + e.width*0.9/2);
+        const hitY = Math.abs(d.y - e.y) < (d.height*0.6/2 + e.height*0.9/2);
+        if (hitX && hitY) return true;
+      }
+      return false;
+    }
+
+    // ========= スコア/バナー/終了 =========
+    function drawScore() {
+      ctx.fillStyle = "#eee";
+      ctx.font = "24px system-ui, sans-serif";
+      ctx.fillText(`score: ${game.score}`, 12, 30);
+    }
+
+    function drawBanner(text) {
+      ctx.fillStyle = "rgba(0,0,0,.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 48px system-ui, sans-serif";
+      ctx.fillText(text, 160, 200);
+    }
+
+    function gameOver() {
+      game.isGameOver = true;
+      clearInterval(game.timer);
+      ctx.fillStyle = "#ef4444";
+      ctx.font = "bold 64px system-ui, sans-serif";
+      ctx.fillText("Game Over!", 210, 200);
+      ctx.fillStyle = "#ddd";
+      ctx.font = "24px system-ui, sans-serif";
+      ctx.fillText("Enterでリスタート / Spaceでジャンプ", 210, 240);
+    }
+
+    // ========= キー操作 =========
+    document.onkeydown = (e) => {
+      if (e.code === "Space") {
+        if (game.isGameOver) {
+          init();
+          // すぐジャンプできるように軽く押してたら反映
+          setTimeout(() => jump(), 50);
+        } else {
+          jump();
+        }
+      }
+      if (e.code === "Enter" && game.isGameOver) {
+        init();
+      }
+    };
+
+    function jump() {
+      if (!game.isGameOver && game.dino.moveY === 0) {
+        game.dino.moveY = -41;
+      }
+    }
+
+    // 初期表示（説明だけ）
+    ctx.fillStyle = "#eee";
+    ctx.font = "bold 36px system-ui, sans-serif";
+    ctx.fillText("Dino 10min", 280, 160);
+    ctx.font = "24px system-ui, sans-serif";
+    ctx.fillText("Spaceで開始（ジャンプ） / Enterでリスタート", 160, 210);
+  </script>
+</body>
+</html>
+EOF
