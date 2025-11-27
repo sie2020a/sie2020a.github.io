@@ -1,5 +1,3 @@
-mkdir -p ~/projects/dino-10min && cd ~/projects/dino-10min
-cat > index.html <<
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -7,20 +5,32 @@ cat > index.html <<
   <title>Dino 10min</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    html,body{margin:0;padding:0;background:#111;color:#eee;font-family:system-ui, -apple-system, sans-serif}
+    html,body{margin:0;padding:0;background:#111;color:#eee;font-family:system-ui,-apple-system,sans-serif}
     header{padding:12px 16px;background:#1a1a1a;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;justify-content:space-between}
     .tm{font-size:12px;opacity:.8}
-    canvas{display:block;margin:0 auto;background:#222}
     .hint{padding:8px 16px;font-size:14px;color:#bbb}
     a{color:#7dd3fc}
+
+    /* キャンバス */
+    canvas{
+      display:block;
+      margin:0 auto;
+      background:#222;
+      width:min(96vw, 800px);   /* 画面にフィット（中は800x450で描画） */
+      height:auto;
+      touch-action:none;        /* スクロール/ズームを抑止（タップで遊べるように） */
+      -webkit-user-select:none; user-select:none;
+    }
   </style>
 </head>
 <body>
   <header>
-    <div><strong>Dino 10min</strong> — Space: ジャンプ / Enter: リスタート</div>
+    <div><strong>Dino 10min</strong> — Space: ジャンプ / Enter: リスタート / タップOK</div>
     <div class="tm">“Chrome™ browser は Google LLC の登録商標です”</div>
   </header>
-  <div class="hint">最初は四角で実装。あとで画像やBGMを差し替えできます。</div>
+  <div class="hint">最初は四角で実装。あとで画像やBGMに差し替えOK。</div>
+
+  <!-- 内部解像度は800x450のまま。見た目はCSSで縮小拡大。 -->
   <canvas id="canvas" width="800" height="450"></canvas>
 
   <script>
@@ -35,7 +45,7 @@ cat > index.html <<
       timer: null,
       enemys: [],
       enemyCooldown: 0,
-      speedBase: 7, // 初期スピード
+      speedBase: 7,
     };
 
     // ========= 初期化 =========
@@ -50,12 +60,11 @@ cat > index.html <<
       createDino();
       clearInterval(game.timer);
       game.timer = setInterval(ticker, 30);
-      drawBanner("Ready? Spaceで開始");
+      drawBanner("Ready? タップ or Space で開始");
     }
 
     // ========= 主役（恐竜） =========
     function createDino() {
-      // 画像の代わりに矩形（幅48,高さ48）。原点は中心扱い。
       game.dino = {
         x: 100,
         y: canvas.height - 24,   // 地面上（中心y）
@@ -71,20 +80,19 @@ cat > index.html <<
       // 1) 画面クリア
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 2) 背景（地面）スクロールっぽい線
+      // 2) 背景（地面）
       drawGround();
 
-      // 3) 敵生成（クールダウンが0なら抽選）
+      // 3) 敵生成
       if (game.enemyCooldown <= 0 && Math.random() < 0.15) {
         spawnEnemy();
-        // スコアが上がるほど次の湧きが早くなる
         game.enemyCooldown = Math.max(10, 30 - Math.floor(game.score / 150));
       } else {
         game.enemyCooldown--;
       }
 
       // 4) 速度スケール
-      const spdScale = 1 + Math.min(1.5, game.score / 2000); // だんだん速く
+      const spdScale = 1 + Math.min(1.5, game.score / 2000);
       const groundSpeed = game.speedBase * spdScale;
 
       // 5) 移動
@@ -96,16 +104,13 @@ cat > index.html <<
       drawEnemys();
 
       // 7) 当たり判定
-      if (hitCheck()) {
-        gameOver();
-        return;
-      }
+      if (hitCheck()) { gameOver(); return; }
 
-      // 8) スコア更新
+      // 8) スコア
       game.score += 1;
       drawScore();
 
-      // 9) カウンタ更新
+      // 9) カウンタ
       game.counter = (game.counter + 1) % 1000000;
     }
 
@@ -116,7 +121,6 @@ cat > index.html <<
       ctx.fillStyle = "#333";
       ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
 
-      // 砂粒っぽいライン
       ctx.strokeStyle = "#2a2a2a";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -145,18 +149,16 @@ cat > index.html <<
       const d = game.dino;
       ctx.fillStyle = d.color;
       ctx.fillRect(d.x - d.width/2, d.y - d.height/2, d.width, d.height);
-
-      // 目
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = "#000"; // 目
       ctx.fillRect(d.x + 10, d.y - 10, 6, 6);
     }
 
-    // ========= 敵生成/移動/描画 =========
+    // ========= 敵 =========
     function spawnEnemy() {
-      const isBird = Math.random() < 0.35; // 鳥の確率
+      const isBird = Math.random() < 0.35;
       if (isBird) {
         const h = 28;
-        const y = Math.random() * 120 + 180; // 中空
+        const y = Math.random() * 120 + 180;
         game.enemys.push({
           type: "bird",
           x: canvas.width + 30,
@@ -183,9 +185,8 @@ cat > index.html <<
 
     function moveEnemys(groundSpeed) {
       for (const e of game.enemys) {
-        e.x += e.moveX * (groundSpeed / 7); // ベース速度でスケール
+        e.x += e.moveX * (groundSpeed / 7);
       }
-      // 画面外を破棄
       game.enemys = game.enemys.filter(e => e.x > -e.width);
     }
 
@@ -196,7 +197,7 @@ cat > index.html <<
       }
     }
 
-    // ========= 当たり判定（ゆるめ調整） =========
+    // ========= 当たり判定 =========
     function hitCheck() {
       const d = game.dino;
       for (const e of game.enemys) {
@@ -210,7 +211,7 @@ cat > index.html <<
     // ========= スコア/バナー/終了 =========
     function drawScore() {
       ctx.fillStyle = "#eee";
-      ctx.font = "24px system-ui, sans-serif";
+      ctx.font = "24px system-ui,sans-serif";
       ctx.fillText(`score: ${game.score}`, 12, 30);
     }
 
@@ -218,49 +219,48 @@ cat > index.html <<
       ctx.fillStyle = "rgba(0,0,0,.5)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#fff";
-      ctx.font = "bold 48px system-ui, sans-serif";
-      ctx.fillText(text, 160, 200);
+      ctx.font = "bold 48px system-ui,sans-serif";
+      ctx.fillText(text, 120, 200);
     }
 
     function gameOver() {
       game.isGameOver = true;
       clearInterval(game.timer);
       ctx.fillStyle = "#ef4444";
-      ctx.font = "bold 64px system-ui, sans-serif";
+      ctx.font = "bold 64px system-ui,sans-serif";
       ctx.fillText("Game Over!", 210, 200);
       ctx.fillStyle = "#ddd";
-      ctx.font = "24px system-ui, sans-serif";
-      ctx.fillText("Enterでリスタート / Spaceでジャンプ", 210, 240);
+      ctx.font = "24px system-ui,sans-serif";
+      ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ", 150, 240);
     }
 
-    // ========= キー操作 =========
-    document.onkeydown = (e) => {
-      if (e.code === "Space") {
-        if (game.isGameOver) {
-          init();
-          // すぐジャンプできるように軽く押してたら反映
-          setTimeout(() => jump(), 50);
-        } else {
-          jump();
-        }
-      }
-      if (e.code === "Enter" && game.isGameOver) {
-        init();
-      }
-    };
-
+    // ========= 入力（PC & スマホ） =========
     function jump() {
       if (!game.isGameOver && game.dino.moveY === 0) {
         game.dino.moveY = -41;
       }
     }
+    function activate(){
+      if (game.isGameOver) { init(); setTimeout(()=>jump(),50); }
+      else { jump(); }
+    }
 
-    // 初期表示（説明だけ）
+    // キーボード
+    document.onkeydown = (e) => {
+      if (e.code === "Space") activate();
+      if (e.code === "Enter" && game.isGameOver) init();
+    };
+    // タップ/ペン/マウス（pointerdownで一括）
+    canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); activate(); });
+    // iOS保険（パッシブ無効でスクロール抑止）
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); activate(); }, { passive:false });
+
+    // ========= 初期表示（説明だけ） =========
     ctx.fillStyle = "#eee";
-    ctx.font = "bold 36px system-ui, sans-serif";
+    ctx.font = "bold 36px system-ui,sans-serif";
     ctx.fillText("Dino 10min", 280, 160);
-    ctx.font = "24px system-ui, sans-serif";
-    ctx.fillText("Spaceで開始（ジャンプ） / Enterでリスタート", 160, 210);
+    ctx.font = "24px system-ui,sans-serif";
+    ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート", 100, 210);
   </script>
 </body>
 </html>
