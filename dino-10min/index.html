@@ -11,14 +11,14 @@
     .hint{padding:8px 16px;font-size:14px;color:#bbb}
     a{color:#7dd3fc}
 
-    /* キャンバス */
+    /* キャンバス（内部解像度は800x450。見た目はCSSで可変） */
     canvas{
       display:block;
       margin:0 auto;
       background:#222;
-      width:min(96vw, 800px);   /* 画面にフィット（中は800x450で描画） */
+      width:min(96vw, 800px);
       height:auto;
-      touch-action:none;        /* スクロール/ズームを抑止（タップで遊べるように） */
+      touch-action:none;             /* スクロール・ズーム抑止（タップ操作が取りやすい） */
       -webkit-user-select:none; user-select:none;
     }
   </style>
@@ -30,7 +30,6 @@
   </header>
   <div class="hint">最初は四角で実装。あとで画像やBGMに差し替えOK。</div>
 
-  <!-- 内部解像度は800x450のまま。見た目はCSSで縮小拡大。 -->
   <canvas id="canvas" width="800" height="450"></canvas>
 
   <script>
@@ -184,10 +183,8 @@
     }
 
     function moveEnemys(groundSpeed) {
-      for (const e of game.enemys) {
-        e.x += e.moveX * (groundSpeed / 7);
-      }
-      game.enemys = game.enemys.filter(e => e.x > -e.width);
+      for (const e of game.enemys) e.x += e.moveX * (groundSpeed / 7);
+      game.enemys = game.enemys.filter(e => e.x > -e.width); // 画面外を破棄
     }
 
     function drawEnemys() {
@@ -231,36 +228,36 @@
       ctx.fillText("Game Over!", 210, 200);
       ctx.fillStyle = "#ddd";
       ctx.font = "24px system-ui,sans-serif";
-      ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ", 150, 240);
+      ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ", 120, 240);
     }
 
-    // ========= 入力（PC & スマホ） =========
+    // ========= 入力（PC & スマホ：画面どこでもOK） =========
     function jump() {
-      if (!game.isGameOver && game.dino.moveY === 0) {
-        game.dino.moveY = -41;
-      }
+      if (!game.isGameOver && game.dino.moveY === 0) game.dino.moveY = -41;
     }
-    function activate(){
-      if (game.isGameOver) { init(); setTimeout(()=>jump(),50); }
+    function activate(e){
+      if (e) e.preventDefault();
+      if (game.isGameOver) { init(); setTimeout(()=>jump(),60); }
       else { jump(); }
     }
 
     // キーボード
-    document.onkeydown = (e) => {
-      if (e.code === "Space") activate();
+    document.addEventListener('keydown', (e) => {
+      if (e.code === "Space") activate(e);
       if (e.code === "Enter" && game.isGameOver) init();
-    };
-    // タップ/ペン/マウス（pointerdownで一括）
-    canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); activate(); });
-    // iOS保険（パッシブ無効でスクロール抑止）
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); activate(); }, { passive:false });
+    });
+
+    // タップ/クリック系（取りこぼし防止で複数イベントをwindowに付与）
+    ['pointerdown','touchstart','mousedown','click'].forEach(ev=>{
+      window.addEventListener(ev, (e)=>{ e.preventDefault(); activate(e); }, { passive:false });
+    });
 
     // ========= 初期表示（説明だけ） =========
     ctx.fillStyle = "#eee";
     ctx.font = "bold 36px system-ui,sans-serif";
     ctx.fillText("Dino 10min", 280, 160);
     ctx.font = "24px system-ui,sans-serif";
-    ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート", 100, 210);
+    ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート", 90, 210);
   </script>
 </body>
 </html>
