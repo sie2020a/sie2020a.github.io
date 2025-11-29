@@ -2,37 +2,59 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>Dino 10min</title>
+  <title>Dino 10min — skinnable</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html,body{margin:0;padding:0;background:#111;color:#eee;font-family:system-ui,-apple-system,sans-serif}
-    header{padding:12px 16px;background:#1a1a1a;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;justify-content:space-between}
-    .tm{font-size:12px;opacity:.8}
+    header{padding:12px 16px;background:#1a1a1a;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .left{display:flex;gap:10px;align-items:center}
+    .tm{font-size:12px;opacity:.75}
     .hint{padding:8px 16px;font-size:14px;color:#bbb}
     a{color:#7dd3fc}
+    button{background:#333;color:#eee;border:1px solid #555;border-radius:8px;padding:6px 10px;cursor:pointer}
+    button:hover{background:#3a3a3a}
 
-    /* キャンバス（内部解像度は800x450。見た目はCSSで可変） */
+    /* キャンバス（内部解像度は800x450） */
     canvas{
       display:block;
       margin:0 auto;
       background:#222;
-      width:min(96vw, 800px);
+      width:min(96vw, 900px);
       height:auto;
-      touch-action:none;             /* スクロール・ズーム抑止（タップ操作が取りやすい） */
+      touch-action:none;
       -webkit-user-select:none; user-select:none;
     }
   </style>
 </head>
 <body>
   <header>
-    <div><strong>Dino 10min</strong> — Space: ジャンプ / Enter: リスタート / タップOK</div>
+    <div class="left">
+      <strong>Dino 10min</strong>
+      <span class="tm">Space/タップ: ジャンプ・開始 / Enter: リスタート</span>
+      <button id="muteBtn" aria-pressed="false">🔊 Sound ON</button>
+    </div>
     <div class="tm">“Chrome™ browser は Google LLC の登録商標です”</div>
   </header>
-  <div class="hint">最初は四角で実装。あとで画像やBGMに差し替えOK。</div>
+  <div class="hint">assets/ に画像・音を置けば自動で反映。無い場合は四角＆無音で動きます。</div>
 
   <canvas id="canvas" width="800" height="450"></canvas>
 
   <script>
+    // ========= 設定：読み込む資産（任意） =========
+    const IMG_PATHS = {
+      dino:     "assets/dino.png",
+      cactus:   "assets/cactus.png",
+      bird:     "assets/bird.png",
+      bgFar:    "assets/bg_far.png",
+      bgNear:   "assets/bg_near.png",
+      ground:   "assets/ground.png",
+    };
+    const SND_PATHS = {
+      bgm:      "assets/bgm.mp3",
+      jump:     "assets/jump.mp3",
+      gameover: "assets/gameover.mp3",
+    };
+
     // ========= 基本セットアップ =========
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -45,7 +67,38 @@
       enemys: [],
       enemyCooldown: 0,
       speedBase: 7,
+      startedOnce: false, // 初回タップ検知（モバイルの音再生解禁）
     };
+
+    // 資産読み込み（あってもなくてもOK）
+    const images = {};
+    const sounds = {};
+    function loadImage(key, src){
+      return new Promise((resolve)=> {
+        const img = new Image();
+        img.onload = ()=>resolve({key, img});
+        img.onerror = ()=>resolve({key, img:null});
+        img.src = src;
+      });
+    }
+    function loadAudio(key, src){
+      return new Promise((resolve)=>{
+        const a = new Audio();
+        a.preload = "auto";
+        a.loop = (key === "bgm");
+        a.oncanplaythrough = ()=>resolve({key, audio:a});
+        a.onerror = ()=>resolve({key, audio:null});
+        a.src = src;
+      });
+    }
+    async function preload(){
+      const imgKeys = Object.entries(IMG_PATHS).map(([k,src])=>loadImage(k, src));
+      const sndKeys = Object.entries(SND_PATHS).map(([k,src])=>loadAudio(k, src));
+      const results = await Promise.all([...imgKeys, ...sndKeys]);
+      for(const r of results){
+        if ('img' in r) images[r.key] = r.img; else sounds[r.key] = r.audio;
+      }
+    }
 
     // ========= 初期化 =========
     function init() {
@@ -53,81 +106,124 @@
       game.score = 0;
       game.isGameOver = false;
       game.enemys = [];
-      game.enemyCooldown = 20;
+      game.enemyCooldown = 18;
       game.speedBase = 7;
 
       createDino();
       clearInterval(game.timer);
       game.timer = setInterval(ticker, 30);
       drawBanner("Ready? タップ or Space で開始");
+
+      // 初回開始後にBGM（モバイルはユーザー操作後しか鳴らない）
+      if (game.startedOnce && sounds.bgm && !isMuted) {
+        try { sounds.bgm.currentTime = 0; sounds.bgm.play(); } catch {}
+      }
     }
 
     // ========= 主役（恐竜） =========
     function createDino() {
+      // 画像の実寸を使いたい場合は onload 後の width/height を使う。
+      const w = images.dino ? Math.min(images.dino.width, 64) : 48;
+      const h = images.dino ? Math.min(images.dino.height, 64) : 48;
       game.dino = {
-        x: 100,
-        y: canvas.height - 24,   // 地面上（中心y）
+        x: 110,
+        y: canvas.height - h/2,   // 地面上（中心y）
         moveY: 0,
-        width: 48,
-        height: 48,
+        width: w,
+        height: h,
         color: "#34d399"
       };
     }
 
     // ========= メインループ =========
+    // パララックス用オフセット
+    let bgFarX=0, bgNearX=0, groundX=0;
     function ticker() {
-      // 1) 画面クリア
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 2) 背景（地面）
-      drawGround();
+      drawBackground();    // 背景（遠景→近景）
+      drawGround();        // 地面
 
-      // 3) 敵生成
+      // 敵生成
       if (game.enemyCooldown <= 0 && Math.random() < 0.15) {
         spawnEnemy();
-        game.enemyCooldown = Math.max(10, 30 - Math.floor(game.score / 150));
+        game.enemyCooldown = Math.max(8, 28 - Math.floor(game.score / 150));
       } else {
         game.enemyCooldown--;
       }
 
-      // 4) 速度スケール
+      // 速度スケール
       const spdScale = 1 + Math.min(1.5, game.score / 2000);
       const groundSpeed = game.speedBase * spdScale;
 
-      // 5) 移動
+      // 移動
       moveDino();
       moveEnemys(groundSpeed);
 
-      // 6) 描画
+      // 描画
       drawDino();
       drawEnemys();
 
-      // 7) 当たり判定
+      // 当たり判定
       if (hitCheck()) { gameOver(); return; }
 
-      // 8) スコア
+      // スコア更新
       game.score += 1;
       drawScore();
 
-      // 9) カウンタ
+      // 背景スクロール更新
+      bgFarX   = (bgFarX   - 0.5*spdScale + 1600) % 1600;
+      bgNearX  = (bgNearX  - 1.5*spdScale + 1600) % 1600;
+      groundX  = (groundX  - 6*spdScale   + 1600) % 1600;
+
+      // カウンタ
       game.counter = (game.counter + 1) % 1000000;
     }
 
-    // ========= 地面 =========
-    let groundOffset = 0;
-    function drawGround() {
-      groundOffset = (groundOffset + 6) % 40;
-      ctx.fillStyle = "#333";
-      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-
-      ctx.strokeStyle = "#2a2a2a";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let x = -groundOffset; x < canvas.width; x += 40) {
-        ctx.moveTo(x, canvas.height - 30);
-        ctx.lineTo(x + 20, canvas.height - 30);
+    // ========= 背景・地面 =========
+    function drawBackground(){
+      // 遠景
+      if (images.bgFar){
+        tileX(images.bgFar, bgFarX, 0);
+      } else {
+        // 代替: グラデ
+        const g = ctx.createLinearGradient(0,0,0,canvas.height);
+        g.addColorStop(0, "#0c1320");
+        g.addColorStop(1, "#111");
+        ctx.fillStyle = g;
+        ctx.fillRect(0,0,canvas.width,canvas.height);
       }
-      ctx.stroke();
+      // 近景
+      if (images.bgNear){
+        tileX(images.bgNear, bgNearX, 0);
+      }
+    }
+    function drawGround() {
+      if (images.ground){
+        tileX(images.ground, groundX, canvas.height - images.ground.height);
+      } else {
+        // 代替: 長方形＋ライン
+        ctx.fillStyle = "#333";
+        ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+        ctx.strokeStyle = "#2a2a2a";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = - (groundX % 40); x < canvas.width; x += 40) {
+          ctx.moveTo(x, canvas.height - 30);
+          ctx.lineTo(x + 20, canvas.height - 30);
+        }
+        ctx.stroke();
+      }
+    }
+    // 横方向に画像を敷き詰める
+    function tileX(img, offsetX, y){
+      const iw = img.width;
+      if (!iw) return;
+      let x = -offsetX;
+      while (x < canvas.width) {
+        ctx.drawImage(img, x, y, iw, img.height);
+        x += iw;
+      }
     }
 
     // ========= Dino 移動/描画 =========
@@ -146,30 +242,35 @@
 
     function drawDino() {
       const d = game.dino;
-      ctx.fillStyle = d.color;
-      ctx.fillRect(d.x - d.width/2, d.y - d.height/2, d.width, d.height);
-      ctx.fillStyle = "#000"; // 目
-      ctx.fillRect(d.x + 10, d.y - 10, 6, 6);
+      if (images.dino){
+        ctx.drawImage(images.dino, d.x - d.width/2, d.y - d.height/2, d.width, d.height);
+      } else {
+        ctx.fillStyle = d.color;
+        ctx.fillRect(d.x - d.width/2, d.y - d.height/2, d.width, d.height);
+        ctx.fillStyle = "#000"; // 目
+        ctx.fillRect(d.x + 10, d.y - 10, 6, 6);
+      }
     }
 
     // ========= 敵 =========
     function spawnEnemy() {
       const isBird = Math.random() < 0.35;
       if (isBird) {
-        const h = 28;
-        const y = Math.random() * 120 + 180;
+        const h = images.bird ? Math.min( images.bird.height, 36 ) : 28;
+        const w = images.bird ? Math.min( images.bird.width,  48 ) : 40;
+        const y = Math.random() * 120 + 170;
         game.enemys.push({
           type: "bird",
-          x: canvas.width + 30,
+          x: canvas.width + w/2,
           y,
-          width: 40,
+          width: w,
           height: h,
           moveX: - (10 + Math.random()*4),
           color: "#60a5fa"
         });
       } else {
-        const w = 30 + Math.floor(Math.random()*20);
-        const h = 50 + Math.floor(Math.random()*30);
+        const w = images.cactus ? Math.min(images.cactus.width,  60) : (30 + Math.floor(Math.random()*20));
+        const h = images.cactus ? Math.min(images.cactus.height, 80) : (50 + Math.floor(Math.random()*30));
         game.enemys.push({
           type: "cactus",
           x: canvas.width + w/2,
@@ -183,14 +284,22 @@
     }
 
     function moveEnemys(groundSpeed) {
-      for (const e of game.enemys) e.x += e.moveX * (groundSpeed / 7);
-      game.enemys = game.enemys.filter(e => e.x > -e.width); // 画面外を破棄
+      for (const e of game.enemys) {
+        e.x += e.moveX * (groundSpeed / 7);
+      }
+      game.enemys = game.enemys.filter(e => e.x > -e.width);
     }
 
     function drawEnemys() {
       for (const e of game.enemys) {
-        ctx.fillStyle = e.color;
-        ctx.fillRect(e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+        if (e.type === "bird" && images.bird){
+          ctx.drawImage(images.bird, e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+        } else if (e.type === "cactus" && images.cactus){
+          ctx.drawImage(images.cactus, e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+        } else {
+          ctx.fillStyle = e.color;
+          ctx.fillRect(e.x - e.width/2, e.y - e.height/2, e.width, e.height);
+        }
       }
     }
 
@@ -228,36 +337,76 @@
       ctx.fillText("Game Over!", 210, 200);
       ctx.fillStyle = "#ddd";
       ctx.font = "24px system-ui,sans-serif";
-      ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ", 120, 240);
+      ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ", 110, 240);
+      // 効果音
+      if (sounds.gameover && !isMuted){
+        try { sounds.gameover.currentTime = 0; sounds.gameover.play(); } catch {}
+      }
+      // BGM停止
+      if (sounds.bgm) { try { sounds.bgm.pause(); } catch {} }
     }
 
     // ========= 入力（PC & スマホ：画面どこでもOK） =========
     function jump() {
-      if (!game.isGameOver && game.dino.moveY === 0) game.dino.moveY = -41;
+      if (!game.isGameOver && game.dino.moveY === 0) {
+        game.dino.moveY = -41;
+        if (sounds.jump && !isMuted){
+          try { sounds.jump.currentTime = 0; sounds.jump.play(); } catch {}
+        }
+      }
     }
     function activate(e){
       if (e) e.preventDefault();
+      if (!game.startedOnce){
+        game.startedOnce = true;
+        // モバイルのオーディオ解禁：ユーザー操作直後にplayを試す
+        if (sounds.bgm && !isMuted){
+          try { sounds.bgm.currentTime = 0; sounds.bgm.play(); } catch {}
+        }
+      }
       if (game.isGameOver) { init(); setTimeout(()=>jump(),60); }
       else { jump(); }
     }
 
-    // キーボード
     document.addEventListener('keydown', (e) => {
       if (e.code === "Space") activate(e);
       if (e.code === "Enter" && game.isGameOver) init();
     });
-
-    // タップ/クリック系（取りこぼし防止で複数イベントをwindowに付与）
     ['pointerdown','touchstart','mousedown','click'].forEach(ev=>{
-      window.addEventListener(ev, (e)=>{ e.preventDefault(); activate(e); }, { passive:false });
+      window.addEventListener(ev, (e)=>activate(e), { passive:false });
     });
 
-    // ========= 初期表示（説明だけ） =========
-    ctx.fillStyle = "#eee";
-    ctx.font = "bold 36px system-ui,sans-serif";
-    ctx.fillText("Dino 10min", 280, 160);
-    ctx.font = "24px system-ui,sans-serif";
-    ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート", 90, 210);
+    // ========= ミュート切替 =========
+    let isMuted = false;
+    const muteBtn = document.getElementById('muteBtn');
+    function updateMuteUI(){
+      muteBtn.textContent = isMuted ? "🔇 Sound OFF" : "🔊 Sound ON";
+      muteBtn.setAttribute('aria-pressed', String(!isMuted));
+      // 再生中のBGMを同期
+      if (sounds.bgm){
+        if (isMuted) { try { sounds.bgm.pause(); } catch {} }
+        else if (!game.isGameOver && game.startedOnce) { try { sounds.bgm.play(); } catch {} }
+      }
+    }
+    muteBtn.addEventListener('click', ()=>{
+      isMuted = !isMuted;
+      updateMuteUI();
+    });
+
+    // ========= 初期表示 =========
+    (async () => {
+      await preload();          // 画像・音があれば取得
+      updateMuteUI();           // ボタン表示同期
+      ctx.fillStyle = "#eee";
+      ctx.font = "bold 36px system-ui,sans-serif";
+      ctx.fillText("Dino 10min — Skinnable", 180, 160);
+      ctx.font = "24px system-ui,sans-serif";
+      ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート", 110, 210);
+      if (images.bgFar || images.bgNear || images.ground){
+        ctx.font = "16px system-ui,sans-serif";
+        ctx.fillText("※ assets/ の画像を読み込みました", 250, 250);
+      }
+    })();
   </script>
 </body>
 </html>
