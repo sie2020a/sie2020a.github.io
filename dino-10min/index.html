@@ -5,29 +5,26 @@
   <title>Water Swordsman Run</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    html,body{margin:0;padding:0;background:#0b0f14;color:#eee;font-family:system-ui,-apple-system,sans-serif}
-    header{padding:12px 16px;background:#10161d;border-bottom:1px solid #1f2a36;
-      display:flex;gap:8px;align-items:center;justify-content:space-between}
-    .tm{font-size:12px;opacity:.8}
+    html,body{margin:0;padding:0;background:#0b0f14;color:#e6eef7;font-family:system-ui,-apple-system,sans-serif}
+    header{padding:12px 16px;background:#10161d;border-bottom:1px solid #1f2a36;display:flex;gap:8px;align-items:center;justify-content:space-between}
     .hint{padding:8px 16px;font-size:14px;color:#a7b0ba}
     a{color:#7dd3fc}
     canvas{
-      display:block; margin:0 auto; background:#0f1520;
-      width:min(96vw, 900px); height:auto;
-      touch-action:none; -webkit-user-select:none; user-select:none;
+      display:block;margin:0 auto;background:#0f1520;
+      width:min(96vw, 900px);height:auto;
+      touch-action:none;-webkit-user-select:none;user-select:none;
     }
   </style>
 </head>
 <body>
   <header>
     <div><strong>Water Swordsman Run</strong> — タップ/Space: ジャンプ ／ Enter: リスタート</div>
-    <div class="tm">素材はオリジナル描画（著作権配慮済み）</div>
+    <div style="opacity:.8;font-size:12px">素材はすべてオリジナル描画</div>
   </header>
-  <div class="hint">※ スマホOK。BGM/SEを使う場合は <code>sounds/</code> に置いてコメントアウトを解除。</div>
+  <div class="hint">※ BGM/SEを使う場合は <code>sounds/</code> を用意して audio のコメントを外せばOK。</div>
 
   <canvas id="canvas" width="900" height="506"></canvas>
 
-  <!-- ▼ 音（任意）: ファイルを置いたらコメント解除 -->
   <!--
   <audio id="seJump" src="sounds/jump.mp3" preload="auto"></audio>
   <audio id="seHit"  src="sounds/hit.mp3" preload="auto"></audio>
@@ -35,331 +32,386 @@
   -->
 
   <script>
-    // ========= 基本 =========
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+  // ========= 基本 =========
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
 
-    const game = {
-      counter: 0, score: 0, isGameOver: true, timer: null,
-      enemys: [], enemyCooldown: 0, speedBase: 7,
-      effects: [], // 水の呼吸
-      parallaxT: 0
+  const game = {
+    counter: 0, score: 0, isGameOver: true, timer: null,
+    enemys: [], enemyCooldown: 0, speedBase: 7,
+    effects: [], parallaxT: 0
+  };
+
+  function init(){
+    game.counter=0; game.score=0; game.isGameOver=false;
+    game.enemys=[]; game.enemyCooldown=20; game.speedBase=7;
+    game.effects=[]; game.parallaxT=0;
+    createHero();
+    clearInterval(game.timer);
+    game.timer=setInterval(ticker, 30);
+    drawBanner("Ready? タップ/Spaceで開始");
+    // tryPlayBGM();
+  }
+
+  // ========= 背景（夜空＋山影＋星） =========
+  function drawBackground(){
+    const g=ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0,"#0b1220"); g.addColorStop(0.6,"#0f1b2b"); g.addColorStop(1,"#121926");
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // 星
+    ctx.fillStyle="#dbeafe";
+    for(let i=0;i<40;i++){
+      const x=((i*97 + game.counter*0.6)%canvas.width), y=(i*53% (canvas.height*0.5));
+      ctx.globalAlpha=0.4+0.6*Math.sin((game.counter+i)*0.02);
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.globalAlpha=1;
+
+    // 山（パララックス）
+    game.parallaxT += 0.8;
+    const drawHill=(y,amp,color)=>{
+      ctx.fillStyle=color;
+      ctx.beginPath();
+      ctx.moveTo(0,canvas.height);
+      for(let x=0;x<=canvas.width;x+=8){
+        const h = Math.sin((x+game.parallaxT)*0.005)*amp
+                + Math.sin((x+game.parallaxT*0.7)*0.011)*amp*0.6;
+        ctx.lineTo(x, y+h);
+      }
+      ctx.lineTo(canvas.width,canvas.height);
+      ctx.closePath(); ctx.fill();
     };
+    drawHill(canvas.height-180, 16, "#0c1624");
+    drawHill(canvas.height-140, 22, "#0d1a2b");
+  }
 
-    function init(){
-      game.counter=0; game.score=0; game.isGameOver=false;
-      game.enemys=[]; game.enemyCooldown=20; game.speedBase=7; game.effects=[]; game.parallaxT=0;
-      createHero();
-      clearInterval(game.timer);
-      game.timer=setInterval(ticker, 30);
-      drawBanner("Ready? タップ/Spaceで開始");
-      // tryPlayBGM();
+  // ========= 地面 =========
+  let groundOffset=0;
+  function drawGround(){
+    groundOffset=(groundOffset+6)%40;
+    ctx.fillStyle="#1a2431"; ctx.fillRect(0,canvas.height-70,canvas.width,70);
+    ctx.strokeStyle="#243243"; ctx.lineWidth=2; ctx.beginPath();
+    for(let x=-groundOffset; x<canvas.width; x+=40){
+      ctx.moveTo(x,canvas.height-40); ctx.lineTo(x+20,canvas.height-40);
     }
+    ctx.stroke();
+  }
 
-    // ========= 背景（夜空＋山影＋星） =========
-    function drawBackground(){
-      const g=ctx.createLinearGradient(0,0,0,canvas.height);
-      g.addColorStop(0,"#0b1220"); g.addColorStop(0.6,"#0f1b2b"); g.addColorStop(1,"#121926");
-      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+  // ========= 主人公（市松模様の“水の剣士”） =========
+  function createHero(){ game.hero={ x:120, y:canvas.height-28, moveY:0, w:54, h:54 }; }
 
-      // 星
-      ctx.fillStyle="#dbeafe";
-      for(let i=0;i<40;i++){
-        const x=((i*97 + game.counter*0.6)%canvas.width), y=(i*53% (canvas.height*0.5));
-        ctx.globalAlpha=0.4+0.6*Math.sin((game.counter+i)*0.02);
-        ctx.fillRect(x, y, 2, 2);
+  function moveHero(){
+    const d=game.hero; d.y+=d.moveY;
+    const floorY=canvas.height - d.h/2 - 16;
+    if(d.y>=floorY){ d.y=floorY; d.moveY=0; } else { d.moveY+=3; }
+  }
+
+  function drawHero(){
+    const d=game.hero, bx=d.x-d.w/2, by=d.y-d.h/2;
+
+    // 胴（ベース）
+    ctx.fillStyle="#0b0f14";
+    roundRect(bx, by+8, d.w, d.h-8, 8, true);
+
+    // 市松模様（緑×黒）
+    const cell=10, cols=Math.ceil(d.w/cell), rows=Math.ceil((d.h-8)/cell);
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const isGreen=((r+c)%2===0);
+        ctx.fillStyle=isGreen?"#1db37f":"#0f2030";
+        ctx.fillRect(bx+c*cell, by+8+r*cell, Math.min(cell,d.w-c*cell), Math.min(cell,d.h-8-r*cell));
       }
-      ctx.globalAlpha=1;
-
-      // 山（パララックス）
-      game.parallaxT += 0.8;
-      const drawHill=(y,amp,color)=>{
-        ctx.fillStyle=color;
-        ctx.beginPath();
-        ctx.moveTo(0,canvas.height);
-        for(let x=0;x<=canvas.width;x+=8){
-          const h = Math.sin((x+game.parallaxT)*0.005)*amp
-                  + Math.sin((x+game.parallaxT*0.7)*0.011)*amp*0.6;
-          ctx.lineTo(x, y+h);
-        }
-        ctx.lineTo(canvas.width,canvas.height);
-        ctx.closePath(); ctx.fill();
-      };
-      drawHill(canvas.height-180, 16, "#0c1624");
-      drawHill(canvas.height-140, 22, "#0d1a2b");
     }
+    // 外枠を軽く
+    ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=2;
+    roundRect(bx, by+8, d.w, d.h-8, 8, false);
 
-    // ========= 地面 =========
-    let groundOffset=0;
-    function drawGround(){
-      groundOffset=(groundOffset+6)%40;
-      ctx.fillStyle="#1a2431"; ctx.fillRect(0,canvas.height-70,canvas.width,70);
-      ctx.strokeStyle="#243243"; ctx.lineWidth=2; ctx.beginPath();
-      for(let x=-groundOffset; x<canvas.width; x+=40){
-        ctx.moveTo(x,canvas.height-40); ctx.lineTo(x+20,canvas.height-40);
+    // 帯
+    ctx.fillStyle="#36bfe6"; ctx.fillRect(bx+6, by+d.h-20, d.w-12, 6);
+
+    // 頭
+    ctx.fillStyle="#f1d4b7";
+    roundRect(bx+8, by-10, d.w-16, 20, 10, true);
+    // 目
+    ctx.fillStyle="#0b0f14"; ctx.fillRect(bx+d.w-26, by-2, 6, 6);
+
+    // マフラー（水色）
+    ctx.strokeStyle="#7dd3fc"; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(bx+d.w-10, by+6);
+    ctx.quadraticCurveTo(bx+d.w+10, by+2, bx+d.w+18, by+10); ctx.stroke();
+  }
+
+  function roundRect(x,y,w,h,r,fill=true){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    fill?ctx.fill():ctx.stroke();
+  }
+
+  // ========= 敵生成 =========
+  function spawnEnemy(){
+    const fly = Math.random() < 0.35;   // 炎玉
+    if (fly){
+      const y=Math.random()*120 + 180;
+      game.enemys.push({ type:"flame", x:canvas.width+40, y, w:36, h:28, vx:-(9+Math.random()*4), t:0 });
+    }else{
+      const w=38+Math.floor(Math.random()*20), h=56+Math.floor(Math.random()*26);
+      game.enemys.push({
+        type:"oni",
+        x:canvas.width+w/2,
+        y:canvas.height-h/2-16,
+        w, h,
+        vx:-(7+Math.random()*3),
+        t:0,
+        animSeed: Math.random()*100
+      });
+    }
+  }
+
+  function moveEnemys(gs){
+    for(const e of game.enemys){
+      e.x += e.vx * (gs/7);
+      e.t++;
+
+      if(e.type==="oni"){
+        // 小さく弾む
+        e.y += Math.sin((e.t+e.animSeed)*0.22) * 0.6;
+        // 近づいたら加速（襲いかかる感じ）
+        const dx = e.x - game.hero.x;
+        if (dx < 280) e.vx = Math.max(e.vx - 0.12, -14);
       }
-      ctx.stroke();
     }
+    game.enemys = game.enemys.filter(e=>e.x>-e.w);
+  }
 
-    // ========= 主人公（市松模様の“水の剣士”） =========
-    function createHero(){
-      game.hero={ x:120, y:canvas.height-28, moveY:0, w:54, h:54 };
-    }
-    function moveHero(){
-      const d=game.hero; d.y+=d.moveY;
-      const floorY=canvas.height-d.h/2-16;
-      if(d.y>=floorY){ d.y=floorY; d.moveY=0; } else { d.moveY+=3; }
-    }
-    function drawHero(){
-      const d=game.hero;
-      const bx=d.x-d.w/2, by=d.y-d.h/2;
-
-      // 胴体（市松模様：緑×黒）
-      const tile=10, green="#1abc9c", black="#0b0f14";
-      for(let yy=0; yy<d.h-8; yy+=tile){
-        for(let xx=0; xx<d.w; xx+=tile){
-          const even = ((xx/tile)+(yy/tile))%2===0;
-          ctx.fillStyle = even ? green : black;
-          ctx.fillRect(bx+xx, by+8+yy, tile, tile);
-        }
-      }
-      // 胴体の角丸外枠で少し整える
-      ctx.save();
-      ctx.globalCompositeOperation="destination-in";
-      roundRect(bx, by+8, d.w, d.h-8, 8, true);
-      ctx.restore();
-
-      // 帯（水色）
-      ctx.fillStyle="#36bfe6";
-      ctx.fillRect(bx+6, by+d.h-20, d.w-12, 6);
-
-      // 頭
-      ctx.fillStyle="#f1d4b7";
-      roundRect(bx+8, by-10, d.w-16, 20, 10, true);
-
-      // 目
-      ctx.fillStyle="#0b0f14"; ctx.fillRect(bx+d.w-26, by-2, 6, 6);
-
-      // マフラー
-      ctx.strokeStyle="#7dd3fc"; ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(bx+d.w-10, by+6);
-      ctx.quadraticCurveTo(bx+d.w+10, by+2, bx+d.w+18, by+10); ctx.stroke();
-    }
-
-    function roundRect(x,y,w,h,r,fill){
-      ctx.beginPath();
-      ctx.moveTo(x+r,y);
-      ctx.arcTo(x+w,y,x+w,y+h,r);
-      ctx.arcTo(x+w,y+h,x,y+h,r);
-      ctx.arcTo(x,y+h,x,y,r);
-      ctx.arcTo(x,y,x+w,y,r);
-      fill?ctx.fill():ctx.stroke();
-    }
-
-    // ========= 敵（地上＝鬼 / 空中＝炎玉） =========
-    function spawnEnemy(){
-      const fly = Math.random()<0.35;
-      if(fly){
-        const y=Math.random()*120 + 180;
-        game.enemys.push({ type:"flame", x:canvas.width+40, y, w:36, h:28, vx:-(9+Math.random()*4), t:0 });
+  function drawEnemys(){
+    for(const e of game.enemys){
+      if(e.type==="oni"){
+        drawOniRun(e);
       }else{
-        const w=36+Math.floor(Math.random()*20), h=52+Math.floor(Math.random()*26);
-        game.enemys.push({ type:"oni", x:canvas.width+w/2, y:canvas.height-h/2-16, w, h, vx:-(7+Math.random()*3), t:0 });
-      }
-    }
-    function moveEnemys(gs){
-      for(const e of game.enemys){ e.x+=e.vx*(gs/7); e.t++; }
-      game.enemys = game.enemys.filter(e=>e.x>-e.w);
-    }
-    function drawEnemys(){
-      for(const e of game.enemys){
-        if (e.type === "oni") {
-          // ===== 横向き（左向き）オリジナル鬼 =====
-          const x = e.x - e.w/2, y = e.y - e.h/2;
-          const w = e.w, h = e.h;
-
-          // 体
-          ctx.fillStyle = "#6d4bbd";
-          roundRect(x, y + 6, w, h - 6, 8, true);
-
-          // 頭（前に少し出す）
-          const headW = Math.min(w * 0.58, w - 8), headH = Math.min(h * 0.48, h - 12);
-          const headX = x + w*0.18;
-          const headY = y - 4 + (h - headH) * 0.25;
-          ctx.fillStyle = "#7b5add";
-          roundRect(headX, headY, headW, headH, 8, true);
-
-          // 角（前傾）
-          ctx.fillStyle = "#eab308";
-          triangle(headX + 8, headY - 8,         headX + 18, headY + 4, headX - 0, headY + 4);
-          triangle(headX + 28, headY - 9,        headX + 36, headY + 3, headX + 18, headY + 3);
-
-          // 目（前＝左側）
-          ctx.fillStyle = "#0b0f14";
-          ctx.fillRect(headX + 6, headY + headH*0.45 - 3, 6, 6);
-
-          // 口（前側の縦長）＋牙
-          ctx.fillStyle = "#0b0f14";
-          const mouthX = headX + 4, mouthY = headY + headH*0.62 - 10;
-          ctx.fillRect(mouthX, mouthY, 8, 20);
-          ctx.fillStyle = "#fef3c7";
-          ctx.fillRect(mouthX + 1, mouthY + 2, 3, 6);
-          ctx.fillRect(mouthX + 1, mouthY + 12, 3, 6);
-
-          // 腕（簡易：前腕だけ前方に）
-          ctx.fillStyle = "#6d4bbd";
-          ctx.fillRect(x + w*0.10, y + h*0.55, 10, 16);
-
-          // 足（影）
-          ctx.fillStyle = "rgba(0,0,0,0.25)";
-          ctx.fillRect(x + w*0.25, y + h - 8, 16, 6);
-          ctx.fillRect(x + w*0.55, y + h - 8, 16, 6);
-        } else {
-          // 炎玉（ゆらぎ）
-          const s = 1 + Math.sin(e.t*0.25)*0.06;
-          ctx.save(); ctx.translate(e.x, e.y); ctx.scale(s,s);
-          const grd=ctx.createRadialGradient(0,0,4,0,0,20);
-          grd.addColorStop(0, "rgba(255,230,120,0.95)");
-          grd.addColorStop(0.5,"rgba(254,153,74,0.9)");
-          grd.addColorStop(1, "rgba(220,38,38,0.7)");
-          ctx.fillStyle=grd;
-          flamePath(0,0,24); ctx.fill();
-          ctx.restore();
-        }
-      }
-    }
-    function triangle(ax,ay,bx,by,cx,cy){ ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.lineTo(cx,cy); ctx.closePath(); ctx.fill(); }
-    function flamePath(cx,cy,r){
-      ctx.beginPath();
-      ctx.moveTo(cx,cy-r*0.6);
-      ctx.bezierCurveTo(cx+r*0.7, cy-r*0.9, cx+r*0.9, cy-r*0.1, cx, cy+r);
-      ctx.bezierCurveTo(cx-r*0.9, cy-r*0.1, cx-r*0.7, cy-r*0.9, cx, cy-r*0.6);
-      ctx.closePath();
-    }
-
-    // ========= エフェクト（水の呼吸） =========
-    function createWaterEffect(x,y){
-      const forms=["crescent","spiral","splash"];
-      const type=forms[Math.floor(Math.random()*forms.length)];
-      const life=28+Math.floor(Math.random()*10);
-      game.effects.push({ type,x,y,t:0,life, rot:(Math.random()*0.6-0.3), vx:3+Math.random()*2, scale:0.9+Math.random()*0.5 });
-    }
-    function updateEffects(){
-      for(const e of game.effects){ e.t++; e.x+=e.vx; e.y+=Math.sin(e.t*0.2); }
-      game.effects=game.effects.filter(e=>e.t<e.life);
-    }
-    function drawEffects(){
-      for(const e of game.effects){
-        const p=e.t/e.life, alpha=1-p, w=6*e.scale*(1-p*0.5);
-        const col1=`rgba(56,189,248,${0.8*alpha})`, col2=`rgba(14,165,233,${0.95*alpha})`;
-        ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
-
-        const stroke=(lw)=>{ ctx.lineWidth=lw; ctx.strokeStyle=col2; };
-
-        if(e.type==="crescent"){
-          const r=64*e.scale; stroke(w);
-          ctx.beginPath(); ctx.arc(0,0,r,-0.8,0.8); ctx.stroke();
-          ctx.lineWidth=w*0.5; ctx.strokeStyle=col1;
-          ctx.beginPath(); ctx.arc(0,0,r*0.82,-0.7,0.7); ctx.stroke();
-
-        }else if(e.type==="spiral"){
-          stroke(w);
-          ctx.beginPath();
-          for(let a=0;a<=Math.PI*1.7;a+=0.12){
-            const rr=(12+a*26)*e.scale, px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.7;
-            if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-          } ctx.stroke();
-
-        }else{
-          for(let i=0;i<6;i++){
-            const ang=(i/6)*Math.PI*1.25 - Math.PI*0.6, len=(32+i*12)*e.scale*(1+p*0.5);
-            stroke(w*0.7);
-            ctx.beginPath(); ctx.moveTo(0,0);
-            ctx.quadraticCurveTo(Math.cos(ang)*len*0.6, Math.sin(ang)*len*0.4, Math.cos(ang)*len, Math.sin(ang)*len*0.7);
-            ctx.stroke();
-          }
-          ctx.fillStyle=col1;
-          for(let i=0;i<4;i++){
-            const ang=(i/4)*Math.PI*1.2 - Math.PI*0.6 + Math.sin(e.t*0.2)*0.1;
-            const r=4*(1-p)*e.scale;
-            ctx.beginPath(); ctx.arc(Math.cos(ang)*50*e.scale, Math.sin(ang)*24*e.scale, r, 0, Math.PI*2); ctx.fill();
-          }
-        }
+        // 炎玉
+        const s = 1 + Math.sin(e.t*0.25)*0.06;
+        ctx.save(); ctx.translate(e.x, e.y); ctx.scale(s,s);
+        const grd=ctx.createRadialGradient(0,0,4,0,0,20);
+        grd.addColorStop(0, "rgba(255,230,120,0.95)");
+        grd.addColorStop(0.5,"rgba(254,153,74,0.9)");
+        grd.addColorStop(1, "rgba(220,38,38,0.7)");
+        ctx.fillStyle=grd;
+        flamePath(0,0,24); ctx.fill();
         ctx.restore();
       }
     }
+  }
 
-    // ========= 当たり判定 =========
-    function hitCheck(){
-      const d=game.hero;
-      for(const e of game.enemys){
-        const hitX=Math.abs(d.x-e.x)<((d.w*0.75)/2 + (e.w*0.9)/2);
-        const hitY=Math.abs(d.y-e.y)<((d.h*0.6)/2 + (e.h?e.h:28)*0.9/2);
-        if(hitX && hitY) return true;
-      } return false;
-    }
+  // 左（←）へ走る鬼：前傾・腕脚ストライド
+  function drawOniRun(e){
+    const phase = (e.t + (e.animSeed||0)) * 0.18;     // 走り位相
+    const lean  = -0.28 + Math.sin(phase*0.7)*0.06;   // 前傾
+    const stride = Math.sin(phase);                   // -1..1
+    const lift   = Math.abs(Math.cos(phase))*4;       // 少し上下
 
-    // ========= UI =========
-    function drawScore(){ ctx.fillStyle="#e5edf5"; ctx.font="24px system-ui,sans-serif"; ctx.fillText(`score: ${game.score}`,12,34); }
-    function drawBanner(text){
-      ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#fff"; ctx.font="bold 48px system-ui,sans-serif"; ctx.fillText(text,140,220);
-    }
-    function gameOver(){
-      game.isGameOver=true; clearInterval(game.timer);
-      // playSE('seHit');
-      ctx.fillStyle="#ef4444"; ctx.font="bold 64px system-ui,sans-serif"; ctx.fillText("Game Over!",230,220);
-      ctx.fillStyle="#ddd"; ctx.font="24px system-ui,sans-serif"; ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ",180,264);
-    }
+    ctx.save();
+    ctx.translate(e.x, e.y + lift);
+    ctx.rotate(lean);
 
-    // ========= ループ =========
-    function ticker(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      drawBackground();
-      drawGround();
+    const w=e.w, h=e.h;
 
-      // 敵生成
-      if(game.enemyCooldown<=0 && Math.random()<0.15){ spawnEnemy(); game.enemyCooldown=Math.max(10,30-Math.floor(game.score/150)); }
-      else game.enemyCooldown--;
+    // 影
+    ctx.save();
+    ctx.rotate(-lean);
+    ctx.fillStyle="rgba(0,0,0,0.25)";
+    ctx.beginPath();
+    ctx.ellipse(0, h/2+8, w*0.42, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
 
-      const spdScale=1+Math.min(1.5, game.score/2200), groundSpeed=game.speedBase*spdScale;
+    // 胴体
+    ctx.fillStyle="#6d4bbd";
+    roundRect(-w*0.45, -h*0.35, w*0.9, h*0.7, 10, true);
 
-      moveHero();
-      drawHero();
+    // 腰の帯
+    ctx.fillStyle="#4f3796";
+    ctx.fillRect(-w*0.36, h*0.05, w*0.72, 6);
 
-      updateEffects(); drawEffects();
+    // 頭
+    const headW = w*0.58, headH = h*0.46;
+    ctx.fillStyle="#7b5add";
+    roundRect(-w*0.10, -h*0.62, headW, headH, 8, true);
 
-      moveEnemys(groundSpeed);
-      drawEnemys();
+    // 角
+    ctx.fillStyle="#eab308";
+    triangle(-w*0.06, -h*0.62,  -w*0.00, -h*0.50,  -w*0.14, -h*0.50);
+    triangle(+w*0.16, -h*0.65,  +w*0.22, -h*0.53,  +w*0.06, -h*0.53);
 
-      if(hitCheck()){ gameOver(); return; }
+    // 目（前＝左）
+    ctx.fillStyle="#0b0f14";
+    ctx.fillRect(-w*0.06, -h*0.50 + 6, 7, 7);
 
-      game.score+=1; drawScore();
-      game.counter=(game.counter+1)%1000000;
-    }
+    // 口＋牙
+    ctx.fillStyle="#0b0f14";
+    ctx.fillRect(-w*0.08, -h*0.40 + 2, 9, 20);
+    ctx.fillStyle="#fef3c7";
+    ctx.fillRect(-w*0.075, -h*0.40 + 4, 3, 6);
+    ctx.fillRect(-w*0.075, -h*0.40 + 14, 3, 6);
 
-    // ========= 入力 =========
-    function jump(){
-      if(!game.isGameOver && game.hero.moveY===0){
-        game.hero.moveY=-42;
-        const d=game.hero;
-        createWaterEffect(d.x + d.w*0.35, d.y - d.h*0.25);
-        // playSE('seJump');
+    // 腕
+    ctx.fillStyle="#6d4bbd";
+    const faX = -w*0.46 + stride*4, faY = -2;              // 前腕（進行方向）
+    roundRect(faX, faY, 14, 24, 4, true);
+    const baX =  w*0.32 + stride*4, baY = 6;               // 後腕
+    roundRect(baX, baY, 12, 22, 4, true);
+
+    // 爪（前腕）
+    ctx.strokeStyle="rgba(15,23,42,0.9)"; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(faX-2, faY+22); ctx.lineTo(faX-8, faY+28);
+    ctx.moveTo(faX+2, faY+22); ctx.lineTo(faX-4, faY+30);
+    ctx.stroke();
+
+    // 脚
+    ctx.fillStyle="#5e43ac";
+    const legSpan = w*0.30;
+    roundRect(-legSpan - stride*6,  h*0.18, 18, 24, 4, true); // 前脚
+    roundRect(+legSpan - stride*6,  h*0.14, 16, 22, 4, true); // 後脚
+
+    ctx.restore();
+  }
+
+  function triangle(ax,ay,bx,by,cx,cy){ ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.lineTo(cx,cy); ctx.closePath(); ctx.fill(); }
+  function flamePath(cx,cy,r){
+    ctx.beginPath();
+    ctx.moveTo(cx,cy-r*0.6);
+    ctx.bezierCurveTo(cx+r*0.7, cy-r*0.9, cx+r*0.9, cy-r*0.1, cx, cy+r);
+    ctx.bezierCurveTo(cx-r*0.9, cy-r*0.1, cx-r*0.7, cy-r*0.9, cx, cy-r*0.6);
+    ctx.closePath();
+  }
+
+  // ========= 水の呼吸エフェクト =========
+  function createWaterEffect(x,y){
+    const forms=["crescent","spiral","splash"];
+    const type=forms[Math.floor(Math.random()*forms.length)];
+    const life=28+Math.floor(Math.random()*10);
+    game.effects.push({ type,x,y,t:0,life, rot:(Math.random()*0.6-0.3), vx:3+Math.random()*2, scale:0.9+Math.random()*0.5 });
+  }
+  function updateEffects(){
+    for(const e of game.effects){ e.t++; e.x+=e.vx; e.y+=Math.sin(e.t*0.2); }
+    game.effects=game.effects.filter(e=>e.t<e.life);
+  }
+  function drawEffects(){
+    for(const e of game.effects){
+      const p=e.t/e.life, alpha=1-p, w=6*e.scale*(1-p*0.5);
+      const col1=`rgba(56,189,248,${0.8*alpha})`, col2=`rgba(14,165,233,${0.95*alpha})`;
+      ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
+
+      const stroke=(lw)=>{ ctx.lineWidth=lw; ctx.strokeStyle=col2; };
+
+      if(e.type==="crescent"){
+        const r=64*e.scale; stroke(w);
+        ctx.beginPath(); ctx.arc(0,0,r,-0.8,0.8); ctx.stroke();
+        ctx.lineWidth=w*0.5; ctx.strokeStyle=col1;
+        ctx.beginPath(); ctx.arc(0,0,r*0.82,-0.7,0.7); ctx.stroke();
+
+      }else if(e.type==="spiral"){
+        stroke(w);
+        ctx.beginPath();
+        for(let a=0;a<=Math.PI*1.7;a+=0.12){
+          const rr=(12+a*26)*e.scale, px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.7;
+          if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        } ctx.stroke();
+
+      }else{ // splash
+        for(let i=0;i<6;i++){
+          const ang=(i/6)*Math.PI*1.25 - Math.PI*0.6, len=(32+i*12)*e.scale*(1+p*0.5);
+          stroke(w*0.7);
+          ctx.beginPath(); ctx.moveTo(0,0);
+          ctx.quadraticCurveTo(Math.cos(ang)*len*0.6, Math.sin(ang)*len*0.4, Math.cos(ang)*len, Math.sin(ang)*len*0.7);
+          ctx.stroke();
+        }
+        ctx.fillStyle=col1;
+        for(let i=0;i<4;i++){
+          const ang=(i/4)*Math.PI*1.2 - Math.PI*0.6 + Math.sin(e.t*0.2)*0.1;
+          const r=4*(1-p)*e.scale;
+          ctx.beginPath(); ctx.arc(Math.cos(ang)*50*e.scale, Math.sin(ang)*24*e.scale, r, 0, Math.PI*2); ctx.fill();
+        }
       }
+      ctx.restore();
     }
-    function activate(){ if(game.isGameOver){ init(); setTimeout(()=>jump(),50); } else { jump(); } }
+  }
 
-    document.onkeydown=(e)=>{ if(e.code==="Space") activate(); if(e.code==="Enter" && game.isGameOver) init(); };
-    canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); activate(); });
-    canvas.addEventListener('touchstart',(e)=>{ e.preventDefault(); activate(); }, {passive:false});
+  // ========= 当たり判定 =========
+  function hitCheck(){
+    const d=game.hero;
+    for(const e of game.enemys){
+      const hitX=Math.abs(d.x-e.x)<((d.w*0.75)/2 + (e.w*0.9)/2);
+      const hitY=Math.abs(d.y-e.y)<((d.h*0.6)/2 + (e.h?e.h:28)*0.9/2);
+      if(hitX && hitY) return true;
+    } return false;
+  }
 
-    // ========= 音（任意） =========
-    function playSE(id){ const el=document.getElementById(id); if(el){ el.currentTime=0; el.play().catch(()=>{});} }
-    function tryPlayBGM(){ const el=document.getElementById('bgm'); if(el){ el.volume=0.5; el.play().catch(()=>{});} }
+  // ========= ループ/UI =========
+  function drawScore(){ ctx.fillStyle="#e5edf5"; ctx.font="24px system-ui,sans-serif"; ctx.fillText(`score: ${game.score}`,12,34); }
 
-    // 初期メッセージ
-    ctx.fillStyle="#e5edf5"; ctx.font="bold 36px system-ui,sans-serif"; ctx.fillText("Water Swordsman Run",240,180);
-    ctx.font="24px system-ui,sans-serif"; ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート",170,222);
+  function drawBanner(text){
+    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#fff"; ctx.font="bold 48px system-ui,sans-serif"; ctx.fillText(text,140,220);
+  }
+
+  function gameOver(){
+    game.isGameOver=true; clearInterval(game.timer);
+    // playSE('seHit');
+    ctx.fillStyle="#ef4444"; ctx.font="bold 64px system-ui,sans-serif"; ctx.fillText("Game Over!",230,220);
+    ctx.fillStyle="#ddd"; ctx.font="24px system-ui,sans-serif"; ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ",180,264);
+  }
+
+  function ticker(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBackground();
+    drawGround();
+
+    if(game.enemyCooldown<=0 && Math.random()<0.15){
+      spawnEnemy(); game.enemyCooldown=Math.max(10,30-Math.floor(game.score/150));
+    }else game.enemyCooldown--;
+
+    const spdScale=1+Math.min(1.5, game.score/2200), groundSpeed=game.speedBase*spdScale;
+
+    moveHero(); drawHero();
+
+    updateEffects(); drawEffects();
+
+    moveEnemys(groundSpeed); drawEnemys();
+
+    if(hitCheck()){ gameOver(); return; }
+
+    game.score += 1; drawScore();
+    game.counter = (game.counter+1) % 1000000;
+  }
+
+  // ========= 入力 =========
+  function jump(){
+    if(!game.isGameOver && game.hero.moveY===0){
+      game.hero.moveY=-42;
+      const d=game.hero;
+      createWaterEffect(d.x + d.w*0.35, d.y - d.h*0.25);
+      // playSE('seJump');
+    }
+  }
+  function activate(){ if(game.isGameOver){ init(); setTimeout(()=>jump(),50); } else { jump(); } }
+
+  document.onkeydown=(e)=>{ if(e.code==="Space") activate(); if(e.code==="Enter" && game.isGameOver) init(); };
+  canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); activate(); });
+  canvas.addEventListener('touchstart',(e)=>{ e.preventDefault(); activate(); }, {passive:false});
+
+  // ========= 音 =========
+  function playSE(id){ const el=document.getElementById(id); if(!el) return; el.currentTime=0; el.play().catch(()=>{}); }
+  function tryPlayBGM(){ const el=document.getElementById('bgm'); if(!el) return; el.volume=0.5; el.play().catch(()=>{}); }
+
+  // 初期メッセージ
+  ctx.fillStyle="#e5edf5"; ctx.font="bold 36px system-ui,sans-serif"; ctx.fillText("Water Swordsman Run",240,180);
+  ctx.font="24px system-ui,sans-serif"; ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート",170,222);
   </script>
 </body>
 </html>
