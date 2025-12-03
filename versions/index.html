@@ -1,0 +1,13 @@
+https://sie2020a.github.io/dino-10min/
+# dino-10min ディレクトリにいる前提
+VER=v2025-12-03-1   # ←適宜 日付+通番に
+mkdir -p versions/$VER
+cp index.html versions/$VER/index.html
+
+# （任意）スクショを撮って置く
+# images/ 下に保存するなら:
+# cp ~/Downloads/snap-$VER.png versions/$VER/snap.png
+
+git add versions/$VER
+git commit -m "Add snapshot $VER"
+git push
