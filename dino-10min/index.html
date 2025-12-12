@@ -6,35 +6,34 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html,body{margin:0;padding:0;background:#0b0f14;color:#e6eef7;font-family:system-ui,-apple-system,sans-serif}
-    header{padding:12px 16px;background:#10161d;border-bottom:1px solid #1f2a36;display:flex;gap:8px;align-items:center;justify-content:space-between}
+    header{padding:12px 16px;background:#10161d;border-bottom:1px solid #1f2a36;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
     .hint{padding:8px 16px;font-size:14px;color:#a7b0ba}
     a{color:#7dd3fc}
-    canvas{
-      display:block;margin:0 auto;background:#0f1520;
-      width:min(96vw, 900px);height:auto;
-      touch-action:none;-webkit-user-select:none;user-select:none;
-    }
+    canvas{display:block;margin:0 auto;background:#0f1520;width:min(96vw, 900px);height:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+    #btnAudio{font:inherit;padding:6px 10px;border:1px solid #1f2a36;border-radius:8px;background:#162133;color:#e6eef7;cursor:pointer}
+    #btnAudio.on{background:#1b2b44}
   </style>
 </head>
 <body>
   <header>
     <div><strong>Water Swordsman Run</strong> — タップ/Space: ジャンプ ／ Enter: リスタート</div>
-    <div style="opacity:.8;font-size:12px">素材はすべてオリジナル描画</div>
+    <button id="btnAudio">🔊 ON/OFF (M)</button>
   </header>
   <div class="hint">※ BGM/SEを使う場合は <code>sounds/</code> を用意して audio のコメントを外せばOK。</div>
 
   <canvas id="canvas" width="900" height="506"></canvas>
 
-  <!--
+  <!-- 任意の効果音（置いたらコメント解除）
   <audio id="seJump" src="sounds/jump.mp3" preload="auto"></audio>
-  <audio id="seHit"  src="sounds/hit.mp3" preload="auto"></audio>
-  <audio id="bgm"    src="sounds/bgm.mp3" preload="auto" loop></audio>
+  <audio id="seHit"  src="sounds/hit.mp3"  preload="auto"></audio>
+  <audio id="bgm"    src="sounds/bgm.mp3"  preload="auto" loop></audio>
   -->
 
   <script>
   // ========= 基本 =========
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
+  const btnAudio = document.getElementById('btnAudio');
 
   const game = {
     counter: 0, score: 0, isGameOver: true, timer: null,
@@ -50,7 +49,12 @@
     clearInterval(game.timer);
     game.timer=setInterval(ticker, 30);
     drawBanner("Ready? タップ/Spaceで開始");
-    // tryPlayBGM();
+  }
+
+  function activate(){
+    if (!bgm.isStarted()) bgm.start();  // 初回入力でBGM解禁
+    if (game.isGameOver){ init(); setTimeout(()=>jump(),50); }
+    else { jump(); }
   }
 
   // ========= 背景（夜空＋山影＋星） =========
@@ -72,8 +76,7 @@
     game.parallaxT += 0.8;
     const drawHill=(y,amp,color)=>{
       ctx.fillStyle=color;
-      ctx.beginPath();
-      ctx.moveTo(0,canvas.height);
+      ctx.beginPath(); ctx.moveTo(0,canvas.height);
       for(let x=0;x<=canvas.width;x+=8){
         const h = Math.sin((x+game.parallaxT)*0.005)*amp
                 + Math.sin((x+game.parallaxT*0.7)*0.011)*amp*0.6;
@@ -118,12 +121,11 @@
     const cell=10, cols=Math.ceil(d.w/cell), rows=Math.ceil((d.h-8)/cell);
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
-        const isGreen=((r+c)%2===0);
-        ctx.fillStyle=isGreen?"#1db37f":"#0f2030";
+        ctx.fillStyle=((r+c)%2===0) ? "#1db37f" : "#0f2030";
         ctx.fillRect(bx+c*cell, by+8+r*cell, Math.min(cell,d.w-c*cell), Math.min(cell,d.h-8-r*cell));
       }
     }
-    // 外枠を軽く
+    // 外枠
     ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=2;
     roundRect(bx, by+8, d.w, d.h-8, 8, false);
 
@@ -152,7 +154,7 @@
     fill?ctx.fill():ctx.stroke();
   }
 
-  // ========= 敵生成 =========
+  // ========= 敵 =========
   function spawnEnemy(){
     const fly = Math.random() < 0.35;   // 炎玉
     if (fly){
@@ -160,15 +162,7 @@
       game.enemys.push({ type:"flame", x:canvas.width+40, y, w:36, h:28, vx:-(9+Math.random()*4), t:0 });
     }else{
       const w=38+Math.floor(Math.random()*20), h=56+Math.floor(Math.random()*26);
-      game.enemys.push({
-        type:"oni",
-        x:canvas.width+w/2,
-        y:canvas.height-h/2-16,
-        w, h,
-        vx:-(7+Math.random()*3),
-        t:0,
-        animSeed: Math.random()*100
-      });
+      game.enemys.push({ type:"oni", x:canvas.width+w/2, y:canvas.height-h/2-16, w, h, vx:-(7+Math.random()*3), t:0, animSeed:Math.random()*100 });
     }
   }
 
@@ -176,12 +170,9 @@
     for(const e of game.enemys){
       e.x += e.vx * (gs/7);
       e.t++;
-
       if(e.type==="oni"){
-        // 小さく弾む
-        e.y += Math.sin((e.t+e.animSeed)*0.22) * 0.6;
-        // 近づいたら加速（襲いかかる感じ）
-        const dx = e.x - game.hero.x;
+        e.y += Math.sin((e.t+e.animSeed)*0.22) * 0.6;         // 小さく弾む
+        const dx = e.x - game.hero.x;                         // 近づいたら加速
         if (dx < 280) e.vx = Math.max(e.vx - 0.12, -14);
       }
     }
@@ -190,81 +181,57 @@
 
   function drawEnemys(){
     for(const e of game.enemys){
-      if(e.type==="oni"){
-        drawOniRun(e);
-      }else{
-        // 炎玉
+      if(e.type==="oni"){ drawOniRun(e); }
+      else{
         const s = 1 + Math.sin(e.t*0.25)*0.06;
         ctx.save(); ctx.translate(e.x, e.y); ctx.scale(s,s);
         const grd=ctx.createRadialGradient(0,0,4,0,0,20);
         grd.addColorStop(0, "rgba(255,230,120,0.95)");
         grd.addColorStop(0.5,"rgba(254,153,74,0.9)");
         grd.addColorStop(1, "rgba(220,38,38,0.7)");
-        ctx.fillStyle=grd;
-        flamePath(0,0,24); ctx.fill();
-        ctx.restore();
+        ctx.fillStyle=grd; flamePath(0,0,24); ctx.fill(); ctx.restore();
       }
     }
   }
 
-  // 左（←）へ走る鬼：前傾・腕脚ストライド
+  // 左（←）へ走る鬼
   function drawOniRun(e){
-    const phase = (e.t + (e.animSeed||0)) * 0.18;     // 走り位相
-    const lean  = -0.28 + Math.sin(phase*0.7)*0.06;   // 前傾
-    const stride = Math.sin(phase);                   // -1..1
-    const lift   = Math.abs(Math.cos(phase))*4;       // 少し上下
+    const phase = (e.t + (e.animSeed||0)) * 0.18;
+    const lean  = -0.28 + Math.sin(phase*0.7)*0.06;
+    const stride = Math.sin(phase);
+    const lift   = Math.abs(Math.cos(phase))*4;
 
-    ctx.save();
-    ctx.translate(e.x, e.y + lift);
-    ctx.rotate(lean);
-
+    ctx.save(); ctx.translate(e.x, e.y + lift); ctx.rotate(lean);
     const w=e.w, h=e.h;
 
     // 影
-    ctx.save();
-    ctx.rotate(-lean);
+    ctx.save(); ctx.rotate(-lean);
     ctx.fillStyle="rgba(0,0,0,0.25)";
-    ctx.beginPath();
-    ctx.ellipse(0, h/2+8, w*0.42, 6, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, h/2+8, w*0.42, 6, 0, 0, Math.PI*2); ctx.fill();
     ctx.restore();
 
     // 胴体
-    ctx.fillStyle="#6d4bbd";
-    roundRect(-w*0.45, -h*0.35, w*0.9, h*0.7, 10, true);
-
-    // 腰の帯
-    ctx.fillStyle="#4f3796";
-    ctx.fillRect(-w*0.36, h*0.05, w*0.72, 6);
-
+    ctx.fillStyle="#6d4bbd"; roundRect(-w*0.45, -h*0.35, w*0.9, h*0.7, 10, true);
+    // 腰
+    ctx.fillStyle="#4f3796"; ctx.fillRect(-w*0.36, h*0.05, w*0.72, 6);
     // 頭
-    const headW = w*0.58, headH = h*0.46;
-    ctx.fillStyle="#7b5add";
-    roundRect(-w*0.10, -h*0.62, headW, headH, 8, true);
-
+    ctx.fillStyle="#7b5add"; roundRect(-w*0.10, -h*0.62, w*0.58, h*0.46, 8, true);
     // 角
     ctx.fillStyle="#eab308";
-    triangle(-w*0.06, -h*0.62,  -w*0.00, -h*0.50,  -w*0.14, -h*0.50);
-    triangle(+w*0.16, -h*0.65,  +w*0.22, -h*0.53,  +w*0.06, -h*0.53);
-
+    triangle(-w*0.06,-h*0.62, -0,-h*0.50, -w*0.14,-h*0.50);
+    triangle(+w*0.16,-h*0.65, +w*0.22,-h*0.53, +w*0.06,-h*0.53);
     // 目（前＝左）
-    ctx.fillStyle="#0b0f14";
-    ctx.fillRect(-w*0.06, -h*0.50 + 6, 7, 7);
-
+    ctx.fillStyle="#0b0f14"; ctx.fillRect(-w*0.06, -h*0.44, 7, 7);
     // 口＋牙
-    ctx.fillStyle="#0b0f14";
-    ctx.fillRect(-w*0.08, -h*0.40 + 2, 9, 20);
-    ctx.fillStyle="#fef3c7";
-    ctx.fillRect(-w*0.075, -h*0.40 + 4, 3, 6);
-    ctx.fillRect(-w*0.075, -h*0.40 + 14, 3, 6);
+    ctx.fillStyle="#0b0f14"; ctx.fillRect(-w*0.08, -h*0.38, 9, 20);
+    ctx.fillStyle="#fef3c7"; ctx.fillRect(-w*0.075, -h*0.36, 3, 6); ctx.fillRect(-w*0.075, -h*0.26, 3, 6);
 
     // 腕
     ctx.fillStyle="#6d4bbd";
-    const faX = -w*0.46 + stride*4, faY = -2;              // 前腕（進行方向）
+    const faX = -w*0.46 + stride*4, faY = -2;  // 前腕
     roundRect(faX, faY, 14, 24, 4, true);
-    const baX =  w*0.32 + stride*4, baY = 6;               // 後腕
+    const baX =  w*0.32 + stride*4, baY = 6;   // 後腕
     roundRect(baX, baY, 12, 22, 4, true);
-
     // 爪（前腕）
     ctx.strokeStyle="rgba(15,23,42,0.9)"; ctx.lineWidth=2;
     ctx.beginPath();
@@ -277,7 +244,6 @@
     const legSpan = w*0.30;
     roundRect(-legSpan - stride*6,  h*0.18, 18, 24, 4, true); // 前脚
     roundRect(+legSpan - stride*6,  h*0.14, 16, 22, 4, true); // 後脚
-
     ctx.restore();
   }
 
@@ -306,7 +272,6 @@
       const p=e.t/e.life, alpha=1-p, w=6*e.scale*(1-p*0.5);
       const col1=`rgba(56,189,248,${0.8*alpha})`, col2=`rgba(14,165,233,${0.95*alpha})`;
       ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.rot);
-
       const stroke=(lw)=>{ ctx.lineWidth=lw; ctx.strokeStyle=col2; };
 
       if(e.type==="crescent"){
@@ -323,7 +288,7 @@
           if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
         } ctx.stroke();
 
-      }else{ // splash
+      }else{
         for(let i=0;i<6;i++){
           const ang=(i/6)*Math.PI*1.25 - Math.PI*0.6, len=(32+i*12)*e.scale*(1+p*0.5);
           stroke(w*0.7);
@@ -354,23 +319,19 @@
 
   // ========= ループ/UI =========
   function drawScore(){ ctx.fillStyle="#e5edf5"; ctx.font="24px system-ui,sans-serif"; ctx.fillText(`score: ${game.score}`,12,34); }
-
   function drawBanner(text){
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle="#fff"; ctx.font="bold 48px system-ui,sans-serif"; ctx.fillText(text,140,220);
   }
-
   function gameOver(){
     game.isGameOver=true; clearInterval(game.timer);
-    // playSE('seHit');
     ctx.fillStyle="#ef4444"; ctx.font="bold 64px system-ui,sans-serif"; ctx.fillText("Game Over!",230,220);
     ctx.fillStyle="#ddd"; ctx.font="24px system-ui,sans-serif"; ctx.fillText("Enterでリスタート / タップ or Spaceでジャンプ",180,264);
   }
 
   function ticker(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawBackground();
-    drawGround();
+    drawBackground(); drawGround();
 
     if(game.enemyCooldown<=0 && Math.random()<0.15){
       spawnEnemy(); game.enemyCooldown=Math.max(10,30-Math.floor(game.score/150));
@@ -379,9 +340,7 @@
     const spdScale=1+Math.min(1.5, game.score/2200), groundSpeed=game.speedBase*spdScale;
 
     moveHero(); drawHero();
-
     updateEffects(); drawEffects();
-
     moveEnemys(groundSpeed); drawEnemys();
 
     if(hitCheck()){ gameOver(); return; }
@@ -399,168 +358,142 @@
       // playSE('seJump');
     }
   }
-  function activate(){ if(game.isGameOver){ init(); setTimeout(()=>jump(),50); } else { jump(); } }
 
-  document.onkeydown=(e)=>{ if(e.code==="Space") activate(); if(e.code==="Enter" && game.isGameOver) init(); };
+  document.addEventListener('keydown',(e)=>{
+    if(e.code==="Space") activate();
+    if(e.code==="Enter" && game.isGameOver) init();
+    if(e.code==="KeyM"){ bgm.toggle(); btnAudio.classList.toggle('on', bgm.isPlaying()); }
+  });
   canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); activate(); });
   canvas.addEventListener('touchstart',(e)=>{ e.preventDefault(); activate(); }, {passive:false});
+  btnAudio.addEventListener('click', ()=>{ if(!bgm.isStarted()) bgm.start(); else bgm.toggle(); btnAudio.classList.toggle('on', bgm.isPlaying()); });
 
-  // ========= 音 =========
+  // ========= 音（WebAudioで自動生成BGM） =========
   function playSE(id){ const el=document.getElementById(id); if(!el) return; el.currentTime=0; el.play().catch(()=>{}); }
-  function tryPlayBGM(){ const el=document.getElementById('bgm'); if(!el) return; el.volume=0.5; el.play().catch(()=>{}); }
 
   // 初期メッセージ
   ctx.fillStyle="#e5edf5"; ctx.font="bold 36px system-ui,sans-serif"; ctx.fillText("Water Swordsman Run",240,180);
   ctx.font="24px system-ui,sans-serif"; ctx.fillText("タップ/Spaceで開始（ジャンプ） / Enterでリスタート",170,222);
   </script>
+
   <script>
-// ===== BGM (Web Audio, オリジナル生成) =====
-const bgm = (() => {
-  let ac, master, started = false, playing = false;
-  let lookahead, intervalId;
-  const tempo = 150;                 // BPM
-  const beat = 60/tempo;             // 1拍の秒
-  const scheduleAhead = 0.25;        // 先行スケジューリング時間
-  let nextTime = 0;                  // 次のイベント時刻
+  // ===== BGM (Web Audio; オリジナル生成) =====
+  const bgm = (() => {
+    let ac, master, started = false, playing = false, lookahead, intervalId;
+    const tempo = 150, beat = 60/tempo, scheduleAhead = 0.25;
+    let nextTime = 0, send;
 
-  // 和風っぽい：Aマイナーペンタ(A C D E G)を上下オクターブで使用
-  const scale = [57, 60, 62, 64, 67, 69, 72].map(n=>n-12); // MIDI（A3中心）
-  const mtof = n => 440 * Math.pow(2, (n-69)/12);
+    const scale = [57,60,62,64,67,69,72].map(n=>n-12);
+    const mtof = n => 440 * Math.pow(2, (n-69)/12);
 
-  function init(){
-    if(ac) return;
-    ac = new (window.AudioContext || window.webkitAudioContext)();
-    master = ac.createGain();
-    master.gain.value = 0.28; // 全体音量
-    const comp = ac.createDynamicsCompressor(); // ちょいだけ整える
-    master.connect(comp); comp.connect(ac.destination);
-    nextTime = ac.currentTime + 0.05;
-  }
+    function init(){
+      if(ac) return;
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = 0.28;
+      const comp = ac.createDynamicsCompressor();
+      master.connect(comp); comp.connect(ac.destination);
+      nextTime = ac.currentTime + 0.05;
+    }
+    function makeSend(g=0.15, t=0.22){
+      const d = ac.createDelay(1.0); d.delayTime.value = t;
+      const fb = ac.createGain(); fb.gain.value = 0.35;
+      const w = ac.createGain(); w.gain.value = g;
+      d.connect(fb).connect(d); d.connect(master);
+      return {in:w, node:d};
+    }
+    function whiteNoise(len=0.05){
+      const buffer = ac.createBuffer(1, ac.sampleRate*len, ac.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+      const src = ac.createBufferSource(); src.buffer = buffer; return buffer;
+    }
 
-  // ちょいリバーブ代わりのフィードバックディレイ
-  function makeSend(g=0.15, t=0.22){
-    const d = ac.createDelay(1.0);
-    d.delayTime.value = t;
-    const fb = ac.createGain(); fb.gain.value = 0.35;
-    const w = ac.createGain(); w.gain.value = g;
-    d.connect(fb).connect(d);
-    d.connect(master);
-    return {in:w, node:d};
-  }
-  let send; // 空間用
+    function simplePluck(t, freq, vol=0.3, dur=0.2){
+      const o = ac.createOscillator(); o.type="sawtooth"; o.frequency.value=freq;
+      const f = ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1400;
+      const g = ac.createGain(); g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+      o.connect(f).connect(g); g.connect(master); if(send) g.connect(send.in);
+      o.start(t); o.stop(t+dur+0.02);
+    }
+    function simpleShamisen(t, freq, vol=0.22, dur=0.18){
+      const o = ac.createOscillator(); o.type="triangle"; o.frequency.value=freq;
+      const a = ac.createGain(); a.gain.setValueAtTime(vol, t);
+      a.gain.exponentialRampToValueAtTime(0.001, t+dur);
+      const bpf = ac.createBiquadFilter(); bpf.type="bandpass"; bpf.frequency.value=1800; bpf.Q.value=1.2;
+      o.connect(bpf).connect(a); a.connect(master); if(send) a.connect(send.in);
+      o.frequency.exponentialRampToValueAtTime(freq*1.01, t+0.04);
+      o.start(t); o.stop(t+dur+0.02);
+    }
 
-  function playTaiko(t, step){
-    // 低い太鼓
-    const g = ac.createGain(); g.gain.setValueAtTime(0.8, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t+0.25);
-    const o = ac.createOscillator(); o.type = "sine";
-    o.frequency.setValueAtTime(100, t);
-    o.frequency.exponentialRampToValueAtTime(60, t+0.08);
-    o.connect(g).connect(master); o.start(t); o.stop(t+0.25);
+    function playTaiko(t, step){
+      const g = ac.createGain(); g.gain.setValueAtTime(0.8, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.25);
+      const o = ac.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(100, t);
+      o.frequency.exponentialRampToValueAtTime(60, t+0.08);
+      o.connect(g).connect(master); o.start(t); o.stop(t+0.25);
 
-    // スナップ（クラップ/スネア代替）：偶数拍で
-    if(step%2===1){
+      if(step%2===1){
+        const n = ac.createBufferSource();
+        const buf = ac.createBuffer(1, ac.sampleRate*0.07, ac.sampleRate);
+        const data = buf.getChannelData(0);
+        for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+        n.buffer = buf;
+        const bp = ac.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1800; bp.Q.value=1.2;
+        const gg = ac.createGain(); gg.gain.value=0.5;
+        n.connect(bp).connect(gg); gg.connect(master); if(send) gg.connect(send.in);
+        n.start(t);
+      }
+    }
+    function playHat(t){
       const n = ac.createBufferSource();
-      n.buffer = whiteNoise(0.07);
-      const bp = ac.createBiquadFilter();
-      bp.type="bandpass"; bp.frequency.value = 1800; bp.Q.value=1.2;
-      const gg = ac.createGain(); gg.gain.value=0.5;
-      n.connect(bp).connect(gg);
-      gg.connect(master); if(send) gg.connect(send.in);
-      n.start(t);
+      const buf = ac.createBuffer(1, ac.sampleRate*0.03, ac.sampleRate);
+      const data = buf.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+      n.buffer = buf;
+      const hp = ac.createBiquadFilter(); hp.type="highpass"; hp.frequency.value = 4000;
+      const g = ac.createGain(); g.gain.value = 0.22;
+      n.connect(hp).connect(g).connect(master); n.start(t);
     }
-  }
-
-  function playHat(t){
-    const n = ac.createBufferSource();
-    n.buffer = whiteNoise(0.03);
-    const hp = ac.createBiquadFilter();
-    hp.type="highpass"; hp.frequency.value = 4000;
-    const g = ac.createGain(); g.gain.value = 0.22;
-    n.connect(hp).connect(g).connect(master);
-    n.start(t);
-  }
-
-  function playBass(t, step){
-    // ドローン＋シンプルな刻み
-    const note = scale[(step*2)%scale.length]-12;
-    simplePluck(t, mtof(note), 0.28, 0.18);
-  }
-
-  function playLead(t, step){
-    // ランダムに五音音階で動くメロ
-    const idx = (step + Math.floor(Math.random()*3)) % scale.length;
-    const n = scale[idx] + 12; // 1オクターブ上
-    simpleShamisen(t, mtof(n), 0.25, 0.22);
-  }
-
-  function simplePluck(t, freq, vol=0.3, dur=0.2){
-    const o = ac.createOscillator(); o.type="sawtooth"; o.frequency.value=freq;
-    const f = ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1400;
-    const g = ac.createGain(); g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t+dur);
-    o.connect(f).connect(g); g.connect(master); if(send) g.connect(send.in);
-    o.start(t); o.stop(t+dur+0.02);
-  }
-
-  function simpleShamisen(t, freq, vol=0.22, dur=0.18){
-    const o = ac.createOscillator(); o.type="triangle"; o.frequency.value=freq;
-    const a = ac.createGain(); a.gain.setValueAtTime(vol, t);
-    a.gain.exponentialRampToValueAtTime(0.001, t+dur);
-    const bpf = ac.createBiquadFilter(); bpf.type="bandpass"; bpf.frequency.value=1800; bpf.Q.value=1.2;
-    o.connect(bpf).connect(a); a.connect(master); if(send) a.connect(send.in);
-    // ちょっと揺らす
-    o.frequency.exponentialRampToValueAtTime(freq*1.01, t+0.04);
-    o.start(t); o.stop(t+dur+0.02);
-  }
-
-  function whiteNoise(len=0.05){
-    const buffer = ac.createBuffer(1, ac.sampleRate*len, ac.sampleRate);
-    const data = buffer.getChannelData(0);
-    for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
-    return buffer;
-  }
-
-  function scheduler(){
-    const ct = ac.currentTime;
-    while(nextTime < ct + scheduleAhead){
-      const step = Math.floor(nextTime/beat);
-      playTaiko(nextTime, step);
-      playHat(nextTime);                     // 4分でチクチク
-      playHat(nextTime + beat*0.5);          // 8分も
-      playBass(nextTime, step);
-      if(step%2===0) playLead(nextTime, step);
-      nextTime += beat; // 次の拍
+    function playBass(t, step){
+      const note = scale[(step*2)%scale.length]-12;
+      simplePluck(t, mtof(note), 0.28, 0.18);
     }
-  }
+    function playLead(t, step){
+      const idx = (step + Math.floor(Math.random()*3)) % scale.length;
+      const n = scale[idx] + 12;
+      simpleShamisen(t, mtof(n), 0.25, 0.22);
+    }
 
-  function start(){
-    init();
-    if(started) return;
-    // iOS対策: 初回タップで resume
-    ac.resume();
-    send = makeSend(0.18, 0.23);
-    // ループ稼働
-    lookahead = 25; // ms
-    intervalId = setInterval(scheduler, lookahead);
-    started = true; playing = true;
-  }
+    function scheduler(){
+      const ct = ac.currentTime;
+      while(nextTime < ct + scheduleAhead){
+        const step = Math.floor(nextTime/beat);
+        playTaiko(nextTime, step);
+        playHat(nextTime); playHat(nextTime + beat*0.5);
+        playBass(nextTime, step);
+        if(step%2===0) playLead(nextTime, step);
+        nextTime += beat;
+      }
+    }
 
-  function stop(){
-    if(!started) return;
-    clearInterval(intervalId);
-    started = false; playing = false;
-  }
+    function start(){
+      init(); if(started) return;
+      ac.resume();
+      send = makeSend(0.18, 0.23);
+      lookahead = 25;
+      intervalId = setInterval(scheduler, lookahead);
+      started = true; playing = true;
+    }
+    function stop(){ if(!started) return; clearInterval(intervalId); started=false; playing=false; }
+    function toggle(){
+      if(!started){ start(); return; }
+      playing = !playing;
+      master.gain.linearRampToValueAtTime(playing ? 0.28 : 0.0, ac.currentTime + 0.1);
+    }
 
-  function toggle(){
-    if(!started){ start(); return; }
-    // 単純ミュート
-    playing = !playing;
-    master.gain.linearRampToValueAtTime(playing ? 0.28 : 0.0, ac.currentTime + 0.1);
-  }
-
-  return { start, stop, toggle, isStarted:()=>started, isPlaying:()=>playing };
-})();
-</script>
+    return { start, stop, toggle, isStarted:()=>started, isPlaying:()=>playing };
+  })();
+  </script>
 </body>
 </html>
