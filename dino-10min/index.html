@@ -55,7 +55,7 @@
     // 初回入力でBGM解禁
     if (!bgm.isStarted()) bgm.start();
 
-    // スマホで別アプリ行って戻ってきた時の復帰（※iOSはユーザー操作が必要）
+    // スマホで別アプリ→戻る時の復帰（iOSはユーザー操作が必要なのでactivateでOK）
     bgm.resumeHard();
 
     if (game.isGameOver){ init(); setTimeout(()=>jump(),50); }
@@ -373,15 +373,12 @@
   canvas.addEventListener('touchstart',(e)=>{ e.preventDefault(); activate(); }, {passive:false});
   btnAudio.addEventListener('click', ()=>{ if(!bgm.isStarted()) bgm.start(); else bgm.toggle(); btnAudio.classList.toggle('on', bgm.isPlaying()); });
 
-  // ===== スマホで裏に回ったらBGM停止（ここが本命） =====
+  // ===== スマホで裏に回ったらBGM停止（不具合対策） =====
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) bgm.pauseHard();
   });
   window.addEventListener("pagehide", () => bgm.pauseHard());
   window.addEventListener("blur", () => bgm.pauseHard());
-
-  // ========= 音（WebAudioで自動生成BGM） =========
-  function playSE(id){ const el=document.getElementById(id); if(!el) return; el.currentTime=0; el.play().catch(()=>{}); }
 
   // 初期メッセージ
   ctx.fillStyle="#e5edf5"; ctx.font="bold 36px system-ui,sans-serif"; ctx.fillText("Water Swordsman Run",240,180);
@@ -389,14 +386,14 @@
   </script>
 
   <script>
-  // ===== BGM (Web Audio; 戦闘シーン寄りに調整) =====
+  // ===== BGM (Web Audio; 猗窩座の圧×善逸のキレ みたいな“雰囲気”寄せ) =====
   const bgm = (() => {
     let ac, master, started = false, playing = false, lookahead, intervalId;
-    const tempo = 178, beat = 60/tempo, scheduleAhead = 0.25;
+    const tempo = 186, beat = 60/tempo, scheduleAhead = 0.25;
     let nextTime = 0, send;
 
-    // 短音階寄り（戦闘の緊張感）
-    const scale = [57,60,62,64,65,69,72].map(n=>n-12);
+    // 和風×緊張の雰囲気（短音階寄り）
+    const scale = [57, 60, 62, 64, 65, 67, 69, 72].map(n=>n-12);
     const mtof = n => 440 * Math.pow(2, (n-69)/12);
 
     function init(){
@@ -410,35 +407,48 @@
 
     function makeSend(g=0.15, t=0.22){
       const d = ac.createDelay(1.0); d.delayTime.value = t;
-      const fb = ac.createGain(); fb.gain.value = 0.35;
+      const fb = ac.createGain(); fb.gain.value = 0.33;
       const w = ac.createGain(); w.gain.value = g;
       d.connect(fb).connect(d); d.connect(master);
       return {in:w, node:d};
     }
 
-    function simplePluck(t, freq, vol=0.3, dur=0.18){
+    function pluck(t, freq, vol=0.28, dur=0.16){
       const o = ac.createOscillator(); o.type="sawtooth"; o.frequency.value=freq;
-      const f = ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1200;
-      const g = ac.createGain(); g.gain.setValueAtTime(vol, t);
+      const f = ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1050;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(vol, t);
       g.gain.exponentialRampToValueAtTime(0.001, t+dur);
       o.connect(f).connect(g); g.connect(master); if(send) g.connect(send.in);
       o.start(t); o.stop(t+dur+0.02);
     }
 
-    function simpleShamisen(t, freq, vol=0.22, dur=0.16){
+    // 刀の鋭さ（短く鋭い）
+    function lead(t, freq, vol=0.22, dur=0.12){
       const o = ac.createOscillator(); o.type="triangle"; o.frequency.value=freq;
-      const a = ac.createGain(); a.gain.setValueAtTime(vol, t);
-      a.gain.exponentialRampToValueAtTime(0.001, t+dur);
-      const bpf = ac.createBiquadFilter(); bpf.type="bandpass"; bpf.frequency.value=2100; bpf.Q.value=1.4;
-      o.connect(bpf).connect(a); a.connect(master); if(send) a.connect(send.in);
-      o.frequency.exponentialRampToValueAtTime(freq*1.015, t+0.03);
+      const bpf = ac.createBiquadFilter(); bpf.type="bandpass"; bpf.frequency.value=2400; bpf.Q.value=1.6;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+      o.connect(bpf).connect(g); g.connect(master); if(send) g.connect(send.in);
+      o.frequency.exponentialRampToValueAtTime(freq*1.02, t+0.02);
       o.start(t); o.stop(t+dur+0.02);
     }
 
-    // 太鼓：強拍＋連打ノイズで“戦闘感”
-    function playTaiko(t, step){
-      const isAccent = (step % 4 === 0) || (step % 8 === 6);
-      const base = isAccent ? 0.95 : 0.65;
+    // “一瞬の連打”で気持ちよさ（雰囲気）
+    function tremoloSlash(t, freq){
+      const hits = 5;
+      const gap = beat * 0.08;
+      for(let i=0;i<hits;i++){
+        lead(t + i*gap, freq*(1 + i*0.005), 0.16, 0.06);
+      }
+    }
+
+    // 太鼓（重さ＋アクセント）
+    function taiko(t, step){
+      const barPos = step % 8;
+      const accent = (barPos === 0) || (barPos === 6);
+      const base = accent ? 0.95 : 0.60;
 
       const g = ac.createGain();
       g.gain.setValueAtTime(base, t);
@@ -446,25 +456,22 @@
 
       const o = ac.createOscillator();
       o.type = "sine";
-      o.frequency.setValueAtTime(isAccent ? 120 : 95, t);
+      o.frequency.setValueAtTime(accent ? 130 : 98, t);
       o.frequency.exponentialRampToValueAtTime(55, t+0.07);
 
       o.connect(g).connect(master);
       o.start(t); o.stop(t+0.22);
 
-      // 刀の衝突っぽい“ザッ”
-      if(step%2===1 || isAccent){
+      // ざらつき（打撃感）
+      if(accent || (step%2===1)){
         const n = ac.createBufferSource();
-        const buf = ac.createBuffer(1, ac.sampleRate*0.05, ac.sampleRate);
+        const buf = ac.createBuffer(1, ac.sampleRate*0.045, ac.sampleRate);
         const data = buf.getChannelData(0);
-        for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * (isAccent?1.0:0.7);
+        for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * (accent?1.0:0.65);
         n.buffer = buf;
 
-        const hp = ac.createBiquadFilter(); 
-        hp.type="highpass"; hp.frequency.value=2600;
-
-        const gg = ac.createGain(); 
-        gg.gain.value=isAccent?0.45:0.28;
+        const hp = ac.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=2600;
+        const gg = ac.createGain(); gg.gain.value = accent?0.40:0.25;
 
         n.connect(hp).connect(gg).connect(master);
         if(send) gg.connect(send.in);
@@ -472,66 +479,62 @@
       }
     }
 
-    function playHat(t){
+    // 速い刻み（緊張）
+    function hat(t){
       const n = ac.createBufferSource();
-      const buf = ac.createBuffer(1, ac.sampleRate*0.025, ac.sampleRate);
+      const buf = ac.createBuffer(1, ac.sampleRate*0.02, ac.sampleRate);
       const data = buf.getChannelData(0);
       for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
       n.buffer = buf;
-
-      const hp = ac.createBiquadFilter(); 
-      hp.type="highpass"; hp.frequency.value = 5200;
-
-      const g = ac.createGain(); 
-      g.gain.value = 0.18;
-
+      const hp = ac.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=6000;
+      const g = ac.createGain(); g.gain.value = 0.15;
       n.connect(hp).connect(g).connect(master);
       n.start(t);
     }
 
-    function playBass(t, step){
-      const note = scale[(step*2)%scale.length]-12;
-      simplePluck(t, mtof(note), 0.30, 0.16);
-    }
-
-    function playLead(t, step){
-      // 予測不能な短フレーズ（緊張感）
-      const idx = (step + [0,2,3,5][step%4]) % scale.length;
-      const n = scale[idx] + 12;
-      simpleShamisen(t, mtof(n), 0.25, 0.18);
+    // 低音：圧
+    function bass(t, step){
+      const prog = [0, 5, 3, 6];
+      const root = scale[ prog[Math.floor(step/8) % prog.length] ] - 12;
+      pluck(t, mtof(root), 0.34, 0.18);
+      if(step % 2 === 0) pluck(t + beat*0.5, mtof(root+12), 0.16, 0.10);
     }
 
     function scheduler(){
       const ct = ac.currentTime;
       while(nextTime < ct + scheduleAhead){
         const step = Math.floor(nextTime/beat);
+        const barPos = step % 8;
 
-        // 1拍ごと
-        playTaiko(nextTime, step);
+        taiko(nextTime, step);
 
-        // 8分刻み（戦闘の刻み）
-        playHat(nextTime);
-        playHat(nextTime + beat*0.5);
+        // 8分刻み
+        hat(nextTime);
+        hat(nextTime + beat*0.5);
 
-        playBass(nextTime, step);
+        bass(nextTime, step);
 
-        // 2拍に1回リード
-        if(step%2===0) playLead(nextTime, step);
+        // キメ（2小節に1回）
+        if(step % 16 === 12){
+          const n = scale[(2 + (step%7)) % scale.length] + 12;
+          tremoloSlash(nextTime, mtof(n));
+        } else if(barPos === 2 || barPos === 5){
+          const idx = (step + [0,2,4,1][barPos%4]) % scale.length;
+          lead(nextTime, mtof(scale[idx] + 12), 0.18, 0.10);
+        }
 
         nextTime += beat;
       }
     }
 
     function start(){
-      init(); 
+      init();
       if(started) return;
-
       ac.resume().catch(()=>{});
       send = makeSend(0.18, 0.23);
       lookahead = 25;
       intervalId = setInterval(scheduler, lookahead);
-      started = true; 
-      playing = true;
+      started = true; playing = true;
     }
 
     function stop(){
@@ -546,7 +549,7 @@
       master.gain.linearRampToValueAtTime(playing ? 0.28 : 0.0, ac.currentTime + 0.08);
     }
 
-    // ★ここが「スマホで裏に回っても鳴り続ける」対策の核心
+    // ★裏に回ったら止める（スマホ対策）
     function pauseHard(){
       if(!ac) return;
       if(master) master.gain.setValueAtTime(0.0, ac.currentTime);
@@ -555,21 +558,21 @@
       playing = false;
     }
 
+    // ★戻った時：勝手に鳴らさない（ユーザー操作が必要）
     function resumeHard(){
       if(!ac || !started) return;
       ac.resume().then(()=>{
         if(!intervalId){
           intervalId = setInterval(scheduler, lookahead);
         }
-        // playingがtrueのときだけ戻す（勝手に鳴らさない）
         master.gain.linearRampToValueAtTime(playing ? 0.28 : 0.0, ac.currentTime + 0.08);
       }).catch(()=>{});
     }
 
-    return { 
-      start, stop, toggle, 
+    return {
+      start, stop, toggle,
       pauseHard, resumeHard,
-      isStarted:()=>started, isPlaying:()=>playing 
+      isStarted:()=>started, isPlaying:()=>playing
     };
   })();
   </script>
