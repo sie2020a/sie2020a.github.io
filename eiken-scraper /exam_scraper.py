@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 # ====== 設定（ここを自分用に編集） ======
 ALLOWED_DOMAINS = [
     # 例：公式・配布OKを自分で確認した上で入れる
-    # "www.eiken.or.jp",         # ←例（実際の可否は自分で規約確認）
+    # "https://www.eiken.or.jp/eiken/exam/",         # ←例（実際の可否は自分で規約確認）
     # "www.mhlw.go.jp",          # ←例：官公庁PDFなど
     # "www.pmda.go.jp",          # ←例
 ]
