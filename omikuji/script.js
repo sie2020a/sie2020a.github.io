@@ -11,29 +11,28 @@ const fortunes = [
   { label: "大凶", img: "./images/daikyo.png" },
 ];
 
-const BOX_IMG = "./images/omikuji.png";
-const SPIN_MS = 1200;
 let isSpinning = false;
 
-function pickRandomFortune(){
+function pickRandomFortune() {
   return fortunes[Math.floor(Math.random() * fortunes.length)];
 }
 
-btn.addEventListener("click", () => {
+function spinOnce() {
   if (isSpinning) return;
   isSpinning = true;
 
-  // 回転中はボタンを隠す
   btn.classList.add("hidden");
   result.textContent = "";
 
-  // まず箱に戻す
-  box.src = BOX_IMG;
+  // いったん「おみくじ筒」に戻して回す
+  box.src = "./images/omikuji.png";
 
-  // アニメを確実に発火させる（連打対策）
+  // アニメ再起動（連続クリックでも回る）
   box.classList.remove("spin");
   void box.offsetWidth;
   box.classList.add("spin");
+
+  const SPIN_MS = 1200;
 
   setTimeout(() => {
     const f = pickRandomFortune();
@@ -44,4 +43,8 @@ btn.addEventListener("click", () => {
     btn.classList.remove("hidden");
     isSpinning = false;
   }, SPIN_MS);
-});
+}
+
+btn.addEventListener("click", spinOnce);
+btn.textContent = "占う";
+result.textContent = "";
