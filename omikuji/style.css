@@ -1,1 +1,89 @@
+:root {
+  --bg: #f7f7fb;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+  text-align: center;
+}
+
+h1 {
+  margin: 20px 0 18px;
+  font-size: 26px;
+  letter-spacing: 0.02em;
+}
+
+.stage {
+  margin: 16px auto 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  width: min(520px, 100%);
+}
+
+.box {
+  width: min(320px, 80%);
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  transform-origin: 50% 50%;
+}
+
+/* 回転アニメーション（JSで class を付け外しする） */
+.spin {
+  animation: spin 1.2s ease-in-out 0s 1;
+}
+
+@keyframes spin {
+  0%   { transform: rotate(0deg) scale(1); }
+  40%  { transform: rotate(540deg) scale(1.02); }
+  70%  { transform: rotate(900deg) scale(0.98); }
+  100% { transform: rotate(1080deg) scale(1); }
+}
+
+.result {
+  min-height: 2.2em;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 12px 0 14px;
+}
+
+.btn {
+  appearance: none;
+  border: 0;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.btn:active { transform: translateY(1px); }
+
+/* ボタン非表示（回転中） */
+.hidden { display: none; }
+
+.note {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
 
