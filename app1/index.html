@@ -1,22 +1,75 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>App1 - Main App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>予定調整くん</title>
+  <link rel="stylesheet" href="./style.css?v=20260110_1">
+  <script defer src="./main.js?v=20260110_1"></script>
 </head>
 <body>
+  <header class="header">
+    <div class="header-inner">
+      <h1>予定調整くん</h1>
+      <div class="userbox">
+        <span id="userLabel" class="userLabel">ゲスト</span>
+        <button id="logoutBtn" class="btn btn-ghost">ログアウト</button>
+      </div>
+    </div>
+  </header>
 
-  <h1>App1 本体アプリ</h1>
+  <main class="container">
+    <section class="card">
+      <h2>ログイン（簡易）</h2>
+      <p class="muted">ユーザー名だけ保存します（LocalStorage）。</p>
+      <div class="row">
+        <input id="userInput" class="input" placeholder="例：progedu-taro" />
+        <button id="loginBtn" class="btn">ログイン</button>
+      </div>
+    </section>
 
-  <p>入力してボタンを押すと表示されます。</p>
+    <section class="card">
+      <h2>予定を作る</h2>
+      <div class="grid2">
+        <div>
+          <label class="label">予定名</label>
+          <input id="titleInput" class="input" placeholder="例：予定1" />
+        </div>
+        <div>
+          <label class="label">メモ（任意）</label>
+          <input id="noteInput" class="input" placeholder="例：場所・持ち物など" />
+        </div>
+      </div>
 
-  <input id="inputText" type="text" placeholder="文字を入力">
-  <button id="btn">表示</button>
+      <div class="row">
+        <button id="addBtn" class="btn">追加</button>
+        <button id="clearBtn" class="btn btn-ghost">入力クリア</button>
+      </div>
 
-  <div id="output"></div>
+      <p id="msg" class="msg"></p>
+    </section>
 
-  <script src="main.js"></script>
+    <section class="card">
+      <h2>あなたの作った予定一覧</h2>
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>予定名</th>
+              <th>更新日時</th>
+              <th>メモ</th>
+              <th class="right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+
+      <div class="row right">
+        <button id="exportBtn" class="btn btn-ghost">JSONエクスポート</button>
+        <button id="wipeBtn" class="btn btn-danger">全削除</button>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
