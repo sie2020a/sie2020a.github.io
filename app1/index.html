@@ -2,74 +2,140 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ピンチズームを殺さない（重要） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <title>予定調整くん</title>
-  <link rel="stylesheet" href="./style.css?v=20260110_1">
-  <script defer src="./main.js?v=20260110_1"></script>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header class="header">
-    <div class="header-inner">
-      <h1>予定調整くん</h1>
-      <div class="userbox">
-        <span id="userLabel" class="userLabel">ゲスト</span>
-        <button id="logoutBtn" class="btn btn-ghost">ログアウト</button>
-      </div>
+  <header class="topbar">
+    <div class="brand">予定調整くん</div>
+
+    <div class="topbar-right">
+      <div class="pill" id="userPill" aria-live="polite">未ログイン</div>
+
+      <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">
+        ⛶
+      </button>
+
+      <button class="btn ghost" id="btnLogout">ログアウト</button>
     </div>
   </header>
 
-  <main class="container">
-    <section class="card">
+  <main class="wrap">
+
+    <!-- ログイン -->
+    <section class="card" id="loginCard">
       <h2>ログイン（簡易）</h2>
       <p class="muted">ユーザー名だけ保存します（LocalStorage）。</p>
+
       <div class="row">
-        <input id="userInput" class="input" placeholder="例：progedu-taro" />
-        <button id="loginBtn" class="btn">ログイン</button>
+        <input id="username" class="input" placeholder="例：progedu-taro" autocomplete="username" />
+        <button class="btn primary" id="btnLogin">ログイン</button>
       </div>
     </section>
 
-    <section class="card">
+    <!-- 予定作成 -->
+    <section class="card" id="createCard">
       <h2>予定を作る</h2>
+
       <div class="grid2">
         <div>
           <label class="label">予定名</label>
-          <input id="titleInput" class="input" placeholder="例：予定1" />
+          <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
         </div>
+
         <div>
           <label class="label">メモ（任意）</label>
-          <input id="noteInput" class="input" placeholder="例：場所・持ち物など" />
+          <input id="memo" class="input" placeholder="例：場所・持ち物など" />
+        </div>
+
+        <div>
+          <label class="label">日付（必須）</label>
+          <input id="date" type="date" class="input" />
+        </div>
+
+        <div>
+          <label class="label">時間（任意）</label>
+          <input id="time" type="time" class="input" />
         </div>
       </div>
 
-      <div class="row">
-        <button id="addBtn" class="btn">追加</button>
-        <button id="clearBtn" class="btn btn-ghost">入力クリア</button>
-      </div>
-
-      <p id="msg" class="msg"></p>
-    </section>
-
-    <section class="card">
-      <h2>あなたの予定</h2>
-      <div class="tableWrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>予定名</th>
-              <th>更新日時</th>
-              <th>メモ</th>
-              <th class="right">操作</th>
-            </tr>
-          </thead>
-          <tbody id="list"></tbody>
-        </table>
-      </div>
-
-      <div class="row right">
-        <button id="exportBtn" class="btn btn-ghost">JSONエクスポート</button>
-        <button id="wipeBtn" class="btn btn-danger">全削除</button>
+      <div class="row gap">
+        <button class="btn primary" id="btnAdd">追加</button>
+        <button class="btn" id="btnClearInput">入力クリア</button>
       </div>
     </section>
+
+    <!-- カレンダー＋詳細 -->
+    <section class="card" id="calendarCard">
+      <div class="calHead">
+        <h2>カレンダー</h2>
+
+        <div class="calNav">
+          <button class="btn" id="btnPrevMonth">◀</button>
+          <div class="calTitle" id="calTitle">2026年1月</div>
+          <button class="btn" id="btnNextMonth">▶</button>
+          <button class="btn ghost" id="btnToday">今日</button>
+        </div>
+      </div>
+
+      <div class="calLayout" id="calLayout">
+        <!-- 月カレンダー -->
+        <div class="calendar" id="calendar" aria-label="月カレンダー"></div>
+
+        <!-- 日付詳細（クリックした日） -->
+        <aside class="dayPanel" id="dayPanel" aria-label="選択日の詳細">
+          <div class="dayPanelHead">
+            <div class="dayTitle" id="dayTitle">日付を選択</div>
+            <button class="btn ghost" id="btnCloseDayPanel" title="閉じる">✕</button>
+          </div>
+
+          <div class="dayList" id="dayList">
+            <p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>
+          </div>
+        </aside>
+      </div>
+
+      <div class="row end gap mt16">
+        <button class="btn" id="btnExport">JSONエクスポート</button>
+        <button class="btn danger" id="btnDeleteAll">全削除</button>
+      </div>
+    </section>
+
   </main>
+
+  <!-- 編集モーダル -->
+  <dialog id="editDialog" class="dialog">
+    <form method="dialog" class="dialogBody" id="editForm">
+      <h3>予定を編集</h3>
+
+      <div class="grid2">
+        <div>
+          <label class="label">予定名</label>
+          <input id="editTitle" class="input" />
+        </div>
+        <div>
+          <label class="label">メモ</label>
+          <input id="editMemo" class="input" />
+        </div>
+        <div>
+          <label class="label">日付</label>
+          <input id="editDate" type="date" class="input" />
+        </div>
+        <div>
+          <label class="label">時間</label>
+          <input id="editTime" type="time" class="input" />
+        </div>
+      </div>
+
+      <div class="row end gap mt16">
+        <button class="btn" value="cancel">キャンセル</button>
+        <button class="btn primary" id="btnSaveEdit" value="ok">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./script.js"></script>
 </body>
 </html>
