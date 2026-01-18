@@ -1,61 +1,26 @@
-// app1/script.js  (ES Modules)
+/***********************
+ * 予定調整くん（LocalStorage版）
+ * - ユーザー名で切り替え
+ * - 予定：日付＋時間＋タイトル＋メモ
+ * - 月カレンダー：日付＋予定名だけ表示（最大3件＋more）
+ * - 日付クリックで詳細（メモ表示）
+ * - 編集/削除
+ * - JSONエクスポート/全削除
+ * - カレンダー全画面（ピンチズームOK）
+ ************************/
 
-// Firebase SDK（バージョンは固定。動かなければ数字だけ新しいのに変えてOK）
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+const LS_USER_KEY = "yotei_user";
+const LS_EVENTS_PREFIX = "yotei_events_"; // + username
 
-import {
-  getFirestore,
-  collection,
-  doc,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-/* =========================
-   1) Firebase設定（ここだけ差し替え）
-   ========================= */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
-
-// init
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-/* =========================
-   2) DOM
-   ========================= */
+// ===== DOM =====
 const el = (id) => document.getElementById(id);
-
-const userPill = el("userPill");
-const btnFullscreen = el("btnFullscreen");
-const btnLogout = el("btnLogout");
 
 const loginCard = el("loginCard");
 const createCard = el("createCard");
-const calendarCard = el("calendarCard");
-
-const username = el("username"); // 使わないけどUI維持（消さない）
+const usernameInput = el("username");
 const btnLogin = el("btnLogin");
+const btnLogout = el("btnLogout");
+const userPill = el("userPill");
 
 const titleInput = el("title");
 const memoInput = el("memo");
@@ -64,13 +29,12 @@ const timeInput = el("time");
 const btnAdd = el("btnAdd");
 const btnClearInput = el("btnClearInput");
 
+const calTitle = el("calTitle");
 const btnPrevMonth = el("btnPrevMonth");
 const btnNextMonth = el("btnNextMonth");
 const btnToday = el("btnToday");
-const calTitle = el("calTitle");
 const calendar = el("calendar");
 
-const dayPanel = el("dayPanel");
 const dayTitle = el("dayTitle");
 const dayList = el("dayList");
 const btnCloseDayPanel = el("btnCloseDayPanel");
@@ -78,523 +42,541 @@ const btnCloseDayPanel = el("btnCloseDayPanel");
 const btnExport = el("btnExport");
 const btnDeleteAll = el("btnDeleteAll");
 
+const btnFullscreen = el("btnFullscreen");
+const calLayout = el("calLayout");
+
 const editDialog = el("editDialog");
+const editForm = el("editForm");
 const editTitle = el("editTitle");
 const editMemo = el("editMemo");
 const editDate = el("editDate");
 const editTime = el("editTime");
 const btnSaveEdit = el("btnSaveEdit");
 
-/* =========================
-   3) 状態
-   ========================= */
+// ===== State =====
 let currentUser = null;
-let currentMonth = new Date(); // 表示中の月
+let currentMonth = new Date();
 currentMonth.setDate(1);
 
-let events = []; // 現在月の予定（Firestoreから取得）
-let selectedDate = null; // "YYYY-MM-DD"
+let selectedDateKey = null; // "YYYY-MM-DD"
 let editingId = null;
 
-/* =========================
-   4) ログインUIをGoogleログインに変更
-   ========================= */
+// ===== Utils =====
+function pad2(n){ return String(n).padStart(2, "0"); }
 
-// 「ログイン」ボタンをGoogleログインにする（ボタン文言は変えたくなければそのままでもOK）
-btnLogin.textContent = "Googleでログイン";
-username.placeholder = "Googleログインを使います（ここは未使用）";
-username.disabled = true;
-
-btnLogin.addEventListener("click", async () => {
-  try {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-  } catch (e) {
-    alert("ログイン失敗: " + (e?.message ?? e));
-  }
-});
-
-btnLogout.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-  } catch (e) {
-    alert("ログアウト失敗: " + (e?.message ?? e));
-  }
-});
-
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user ?? null;
-
-  if (!currentUser) {
-    userPill.textContent = "未ログイン";
-    loginCard.style.display = "";
-    createCard.style.display = "none";
-    calendarCard.style.display = "none";
-    events = [];
-    renderCalendar();
-    closeDayPanel();
-    return;
-  }
-
-  userPill.textContent = currentUser.displayName || currentUser.email || "ログイン中";
-  loginCard.style.display = "none";
-  createCard.style.display = "";
-  calendarCard.style.display = "";
-
-  // ログインしたら当月を読み込み
-  await loadMonthEvents();
-  renderCalendar();
-});
-
-/* =========================
-   5) Firestore（保存・読み込み）
-   ========================= */
-
-function userEventsCol() {
-  if (!currentUser) return null;
-  return collection(db, "users", currentUser.uid, "events");
-}
-
-// 月の範囲（YYYY-MM-DD文字列）
-function monthRange(d) {
+function ymd(d){
   const y = d.getFullYear();
-  const m = d.getMonth();
-  const first = new Date(y, m, 1);
-  const last = new Date(y, m + 1, 0);
-  return {
-    from: toYmd(first),
-    to: toYmd(last),
-  };
+  const m = pad2(d.getMonth()+1);
+  const day = pad2(d.getDate());
+  return `${y}-${m}-${day}`;
 }
 
-async function loadMonthEvents() {
-  if (!currentUser) return;
+function ymTitle(d){
+  return `${d.getFullYear()}年${d.getMonth()+1}月`;
+}
 
-  const { from, to } = monthRange(currentMonth);
-  const q = query(
-    userEventsCol(),
-    where("date", ">=", from),
-    where("date", "<=", to)
-  );
+function readUser(){
+  return localStorage.getItem(LS_USER_KEY);
+}
 
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach((docu) => {
-    const data = docu.data();
-    list.push({
-      id: docu.id,
-      title: data.title ?? "",
-      memo: data.memo ?? "",
-      date: data.date ?? "",
-      time: data.time ?? "",
-      updatedAt: data.updatedAt ?? null,
+function saveUser(name){
+  localStorage.setItem(LS_USER_KEY, name);
+}
+
+function clearUser(){
+  localStorage.removeItem(LS_USER_KEY);
+}
+
+function eventsKey(){
+  return LS_EVENTS_PREFIX + currentUser;
+}
+
+function loadEvents(){
+  if (!currentUser) return [];
+  try{
+    const raw = localStorage.getItem(eventsKey());
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    if(!Array.isArray(arr)) return [];
+    return arr;
+  }catch(e){
+    console.error("loadEvents error", e);
+    return [];
+  }
+}
+
+function saveEvents(arr){
+  if(!currentUser) return;
+  localStorage.setItem(eventsKey(), JSON.stringify(arr));
+}
+
+function uid(){
+  return "e_" + Math.random().toString(36).slice(2,10) + "_" + Date.now().toString(36);
+}
+
+function groupByDate(events){
+  const map = {};
+  for(const e of events){
+    if(!map[e.date]) map[e.date] = [];
+    map[e.date].push(e);
+  }
+  // 時間順（空は最後）
+  for(const k of Object.keys(map)){
+    map[k].sort((a,b)=>{
+      const ta = a.time || "99:99";
+      const tb = b.time || "99:99";
+      return ta.localeCompare(tb);
     });
-  });
-
-  // 同日内は time で並べる（Firestore側で複雑にしない）
-  list.sort((a, b) => {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return (a.time || "99:99").localeCompare(b.time || "99:99");
-  });
-
-  events = list;
-
-  // 選択日があれば詳細も更新
-  if (selectedDate) renderDayPanel(selectedDate);
+  }
+  return map;
 }
 
-async function addEvent({ title, memo, date, time }) {
-  const col = userEventsCol();
-  const payload = {
-    title,
-    memo,
-    date,
-    time: time || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-  await addDoc(col, payload);
+function fmtDateKey(key){
+  // "YYYY-MM-DD" -> "YYYY年M月D日"
+  const [y,m,d] = key.split("-").map(Number);
+  return `${y}年${m}月${d}日`;
 }
 
-async function updateEvent(id, { title, memo, date, time }) {
-  const ref = doc(db, "users", currentUser.uid, "events", id);
-  await updateDoc(ref, {
-    title,
-    memo,
-    date,
-    time: time || "",
-    updatedAt: serverTimestamp(),
-  });
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
-async function removeEvent(id) {
-  const ref = doc(db, "users", currentUser.uid, "events", id);
-  await deleteDoc(ref);
+// ===== UI Control =====
+function setLoggedInUI(on){
+  loginCard.style.display = on ? "none" : "block";
+  createCard.style.display = on ? "block" : "none";
+  btnLogout.disabled = !on;
+  btnFullscreen.disabled = !on;
+  btnExport.disabled = !on;
+  btnDeleteAll.disabled = !on;
+  btnPrevMonth.disabled = !on;
+  btnNextMonth.disabled = !on;
+  btnToday.disabled = !on;
 }
 
-async function deleteAllEvents() {
-  const col = userEventsCol();
-  const snap = await getDocs(col);
-  const tasks = [];
-  snap.forEach((d) => tasks.push(deleteDoc(d.ref)));
-  await Promise.all(tasks);
+function updateUserPill(){
+  userPill.textContent = currentUser ? currentUser : "未ログイン";
 }
 
-/* =========================
-   6) 入力・追加
-   ========================= */
-
-btnClearInput.addEventListener("click", () => {
+function clearInputs(){
   titleInput.value = "";
   memoInput.value = "";
   dateInput.value = "";
   timeInput.value = "";
-});
+}
 
-btnAdd.addEventListener("click", async () => {
-  if (!currentUser) return alert("ログインしてね");
+function pickDefaultDate(){
+  // 今日をデフォルトに入れる（使いやすい）
+  const today = new Date();
+  dateInput.value = ymd(today);
+}
 
+// ===== Calendar Render =====
+function renderCalendar(){
+  // 途中で死んでもカレンダーを真っ白にしないためのtry
+  try{
+    const events = loadEvents();
+    const byDate = groupByDate(events);
+
+    calTitle.textContent = ymTitle(currentMonth);
+    calendar.innerHTML = "";
+
+    const dow = ["日","月","火","水","木","金","土"];
+    for(const w of dow){
+      const elw = document.createElement("div");
+      elw.className = "calDow";
+      elw.textContent = w;
+      calendar.appendChild(elw);
+    }
+
+    const first = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const last  = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 0);
+
+    // blank
+    for(let i=0;i<first.getDay();i++){
+      const blank = document.createElement("div");
+      blank.className = "calCell blank";
+      calendar.appendChild(blank);
+    }
+
+    for(let day=1; day<=last.getDate(); day++){
+      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const key = ymd(d);
+
+      const cell = document.createElement("div");
+      cell.className = "calCell";
+      if (selectedDateKey === key) cell.classList.add("selected");
+
+      const num = document.createElement("div");
+      num.className = "calNum";
+      num.textContent = day;
+
+      const list = document.createElement("div");
+      list.className = "calEvents";
+
+      const evts = byDate[key] || [];
+      const show = evts.slice(0,3);
+      for(const e of show){
+        const pill = document.createElement("div");
+        pill.className = "calEvt";
+        pill.textContent = e.title || "(無題)";
+        list.appendChild(pill);
+      }
+      if(evts.length > 3){
+        const more = document.createElement("div");
+        more.className = "calMore";
+        more.textContent = `+${evts.length - 3}`;
+        list.appendChild(more);
+      }
+
+      cell.appendChild(num);
+      cell.appendChild(list);
+
+      cell.addEventListener("click", ()=>{
+        selectedDateKey = key;
+        renderCalendar();        // 選択枠更新
+        renderDayPanel(key);     // 右側詳細更新
+      });
+
+      calendar.appendChild(cell);
+    }
+
+    // 右側：未選択ならメッセージ
+    if(!selectedDateKey){
+      dayTitle.textContent = "日付を選択";
+      dayList.innerHTML = `<p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>`;
+    }else{
+      // 選択月を変えた時に、選択日が月外なら解除
+      const [y,m] = selectedDateKey.split("-").map(Number);
+      if(y !== currentMonth.getFullYear() || (m-1) !== currentMonth.getMonth()){
+        selectedDateKey = null;
+        dayTitle.textContent = "日付を選択";
+        dayList.innerHTML = `<p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>`;
+      }else{
+        renderDayPanel(selectedDateKey);
+      }
+    }
+  }catch(e){
+    console.error("renderCalendar error", e);
+    // 最低限の表示を残す
+    calendar.innerHTML = `<div class="muted">カレンダー描画でエラーが出ました。console を確認してください。</div>`;
+  }
+}
+
+function renderDayPanel(dateKey){
+  const events = loadEvents();
+  const byDate = groupByDate(events);
+  const evts = byDate[dateKey] || [];
+
+  dayTitle.textContent = fmtDateKey(dateKey);
+
+  if(evts.length === 0){
+    dayList.innerHTML = `<p class="muted">この日の予定はありません。</p>`;
+    return;
+  }
+
+  dayList.innerHTML = "";
+  for(const e of evts){
+    const item = document.createElement("div");
+    item.className = "dayItem";
+
+    const top = document.createElement("div");
+    top.className = "dayItemTop";
+
+    const t = document.createElement("div");
+    t.className = "dayItemTitle";
+    t.textContent = e.title || "(無題)";
+
+    const badge = document.createElement("div");
+    badge.className = "badgeTime";
+    badge.textContent = e.time ? e.time : "時刻なし";
+
+    top.appendChild(t);
+    top.appendChild(badge);
+
+    const memo = document.createElement("div");
+    memo.className = "dayItemMemo";
+    memo.textContent = e.memo ? e.memo : "（メモなし）";
+
+    const btns = document.createElement("div");
+    btns.className = "dayItemBtns";
+
+    const bEdit = document.createElement("button");
+    bEdit.className = "btn";
+    bEdit.textContent = "編集";
+    bEdit.addEventListener("click", ()=> openEdit(e.id));
+
+    const bDel = document.createElement("button");
+    bDel.className = "btn danger";
+    bDel.textContent = "削除";
+    bDel.addEventListener("click", ()=> deleteOne(e.id));
+
+    btns.appendChild(bEdit);
+    btns.appendChild(bDel);
+
+    item.appendChild(top);
+    item.appendChild(memo);
+    item.appendChild(btns);
+
+    dayList.appendChild(item);
+  }
+}
+
+// ===== CRUD =====
+function addEvent(){
+  if(!currentUser){
+    alert("ログインしてください");
+    return;
+  }
   const title = titleInput.value.trim();
   const memo = memoInput.value.trim();
   const date = dateInput.value;
   const time = timeInput.value;
 
-  if (!title) return alert("予定名は必須");
-  if (!date) return alert("日付は必須");
-
-  try {
-    await addEvent({ title, memo, date, time });
-    btnClearInput.click();
-    await loadMonthEvents();
-    renderCalendar();
-  } catch (e) {
-    alert("保存失敗: " + (e?.message ?? e));
+  if(!date){
+    alert("日付は必須です");
+    return;
   }
-});
-
-/* =========================
-   7) カレンダー描画
-   ========================= */
-
-btnPrevMonth.addEventListener("click", async () => {
-  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-  await loadMonthEvents();
-  renderCalendar();
-});
-
-btnNextMonth.addEventListener("click", async () => {
-  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-  await loadMonthEvents();
-  renderCalendar();
-});
-
-btnToday.addEventListener("click", async () => {
-  const now = new Date();
-  currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  await loadMonthEvents();
-  renderCalendar();
-  // 今日を開く
-  const today = toYmd(now);
-  openDayPanel(today);
-});
-
-function renderCalendar() {
-  const y = currentMonth.getFullYear();
-  const m = currentMonth.getMonth();
-  calTitle.textContent = `${y}年${m + 1}月`;
-
-  // 月の1日が何曜日か（0=日）
-  const firstDay = new Date(y, m, 1);
-  const startWeekday = firstDay.getDay();
-
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-  // 表示は 6週 x 7日 で固定（Googleカレンダーっぽい）
-  const totalCells = 42;
-
-  // 前月の末日
-  const prevMonthLast = new Date(y, m, 0).getDate();
-
-  calendar.innerHTML = "";
-
-  // 曜日ヘッダ
-  const week = ["日", "月", "火", "水", "木", "金", "土"];
-  const header = document.createElement("div");
-  header.className = "calGrid calWeekHeader";
-  week.forEach((w) => {
-    const d = document.createElement("div");
-    d.className = "calWeekCell";
-    d.textContent = w;
-    header.appendChild(d);
-  });
-  calendar.appendChild(header);
-
-  // 本体
-  const grid = document.createElement("div");
-  grid.className = "calGrid calBody";
-
-  for (let i = 0; i < totalCells; i++) {
-    const cell = document.createElement("div");
-    cell.className = "calCell";
-
-    let dayNum;
-    let cellDate;
-    let inMonth = true;
-
-    if (i < startWeekday) {
-      // 前月
-      inMonth = false;
-      dayNum = prevMonthLast - (startWeekday - 1 - i);
-      cellDate = toYmd(new Date(y, m - 1, dayNum));
-    } else if (i >= startWeekday + daysInMonth) {
-      // 次月
-      inMonth = false;
-      dayNum = i - (startWeekday + daysInMonth) + 1;
-      cellDate = toYmd(new Date(y, m + 1, dayNum));
-    } else {
-      // 当月
-      dayNum = i - startWeekday + 1;
-      cellDate = toYmd(new Date(y, m, dayNum));
-    }
-
-    if (!inMonth) cell.classList.add("mutedMonth");
-
-    // 今日
-    const todayStr = toYmd(new Date());
-    if (cellDate === todayStr) cell.classList.add("today");
-
-    // 選択日
-    if (selectedDate && cellDate === selectedDate) cell.classList.add("selected");
-
-    const top = document.createElement("div");
-    top.className = "calDayNum";
-    top.textContent = String(dayNum);
-
-    const list = document.createElement("div");
-    list.className = "calEvents";
-
-    const dayEvents = events.filter((e) => e.date === cellDate);
-    const maxShow = 3;
-
-    dayEvents.slice(0, maxShow).forEach((e) => {
-      const item = document.createElement("div");
-      item.className = "calEventItem";
-      item.textContent = e.time ? `${e.time} ${e.title}` : e.title;
-      list.appendChild(item);
-    });
-
-    if (dayEvents.length > maxShow) {
-      const more = document.createElement("div");
-      more.className = "calMore";
-      more.textContent = `+${dayEvents.length - maxShow}件`;
-      list.appendChild(more);
-    }
-
-    cell.appendChild(top);
-    cell.appendChild(list);
-
-    cell.addEventListener("click", () => openDayPanel(cellDate));
-
-    grid.appendChild(cell);
-  }
-
-  calendar.appendChild(grid);
-}
-
-function openDayPanel(ymd) {
-  selectedDate = ymd;
-  dayPanel.classList.add("open");
-  renderCalendar(); // 選択ハイライト更新
-  renderDayPanel(ymd);
-}
-
-function closeDayPanel() {
-  dayPanel.classList.remove("open");
-  selectedDate = null;
-  renderCalendar();
-}
-
-btnCloseDayPanel.addEventListener("click", closeDayPanel);
-
-function renderDayPanel(ymd) {
-  dayTitle.textContent = formatYmd(ymd);
-
-  const dayEvents = events
-    .filter((e) => e.date === ymd)
-    .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
-
-  if (dayEvents.length === 0) {
-    dayList.innerHTML = `<p class="muted">この日の予定はありません。</p>`;
+  if(!title){
+    alert("予定名を入れてください");
     return;
   }
 
-  const wrap = document.createElement("div");
-  wrap.className = "dayItems";
-
-  dayEvents.forEach((e) => {
-    const card = document.createElement("div");
-    card.className = "dayItem";
-
-    const head = document.createElement("div");
-    head.className = "day reac";
-
-    const t = document.createElement("div");
-    t.className = "dayItemTitle";
-    t.textContent = e.time ? `${e.time}  ${e.title}` : e.title;
-
-    const memo = document.createElement("div");
-    memo.className = "dayItemMemo";
-    memo.textContent = e.memo ? `メモ：${e.memo}` : "メモ：（なし）";
-
-    const actions = document.createElement("div");
-    actions.className = "dayActions";
-
-    const editBtn = document.createElement("button");
-    editBtn.className = "btn";
-    editBtn.textContent = "編集";
-    editBtn.addEventListener("click", () => openEdit(e));
-
-    const delBtn = document.createElement("button");
-    delBtn.className = "btn danger";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", async () => {
-      if (!confirm("削除する？")) return;
-      await removeEvent(e.id);
-      await loadMonthEvents();
-      renderCalendar();
-      renderDayPanel(ymd);
-    });
-
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-
-    card.appendChild(t);
-    card.appendChild(memo);
-    card.appendChild(actions);
-
-    wrap.appendChild(card);
+  const events = loadEvents();
+  events.push({
+    id: uid(),
+    title,
+    memo,
+    date,
+    time,
+    updatedAt: new Date().toISOString()
   });
+  saveEvents(events);
 
-  dayList.innerHTML = "";
-  dayList.appendChild(wrap);
+  // 追加した日を選択状態にして見せる
+  selectedDateKey = date;
+
+  // 追加後は入力を少し残してもいいが、今回はクリアする
+  clearInputs();
+  pickDefaultDate();
+
+  // 追加した月へジャンプ
+  const [y,m] = date.split("-").map(Number);
+  currentMonth = new Date(y, m-1, 1);
+
+  renderCalendar();
 }
 
-/* =========================
-   8) 編集モーダル
-   ========================= */
+function deleteOne(id){
+  if(!confirm("この予定を削除します。いい？")) return;
+  const events = loadEvents().filter(e => e.id !== id);
+  saveEvents(events);
+  renderCalendar();
+}
 
-function openEdit(e) {
-  editingId = e.id;
+function openEdit(id){
+  const events = loadEvents();
+  const e = events.find(x => x.id === id);
+  if(!e) return;
+
+  editingId = id;
   editTitle.value = e.title || "";
   editMemo.value = e.memo || "";
   editDate.value = e.date || "";
   editTime.value = e.time || "";
+
   editDialog.showModal();
 }
 
-btnSaveEdit.addEventListener("click", async (ev) => {
-  ev.preventDefault(); // dialog閉じるのは form method=dialog がやる
-  if (!editingId) return;
+function saveEdit(){
+  if(!editingId) return;
 
-  const payload = {
-    title: editTitle.value.trim(),
-    memo: editMemo.value.trim(),
-    date: editDate.value,
-    time: editTime.value,
-  };
+  const title = editTitle.value.trim();
+  const memo  = editMemo.value.trim();
+  const date  = editDate.value;
+  const time  = editTime.value;
 
-  if (!payload.title) return alert("予定名は必須");
-  if (!payload.date) return alert("日付は必須");
-
-  try {
-    await updateEvent(editingId, payload);
-    editingId = null;
-    editDialog.close();
-    await loadMonthEvents();
-    renderCalendar();
-    if (selectedDate) renderDayPanel(selectedDate);
-  } catch (e) {
-    alert("更新失敗: " + (e?.message ?? e));
+  if(!date){
+    alert("日付は必須です");
+    return;
   }
-});
+  if(!title){
+    alert("予定名を入れてください");
+    return;
+  }
 
-/* =========================
-   9) JSONエクスポート / 全削除
-   ========================= */
+  const events = loadEvents();
+  const idx = events.findIndex(x => x.id === editingId);
+  if(idx < 0) return;
 
-btnExport.addEventListener("click", async () => {
-  if (!currentUser) return alert("ログインしてね");
+  events[idx] = {
+    ...events[idx],
+    title, memo, date, time,
+    updatedAt: new Date().toISOString()
+  };
+  saveEvents(events);
 
-  const snap = await getDocs(userEventsCol());
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+  selectedDateKey = date;
 
-  const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+  const [y,m] = date.split("-").map(Number);
+  currentMonth = new Date(y, m-1, 1);
+
+  renderCalendar();
+}
+
+// ===== Export / DeleteAll =====
+function exportJson(){
+  const events = loadEvents();
+  const blob = new Blob([JSON.stringify(events, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `events_${currentUser.uid}.json`;
+  a.download = `yotei_${currentUser || "user"}_${ymd(new Date())}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
+
   URL.revokeObjectURL(url);
-});
+}
 
-btnDeleteAll.addEventListener("click", async () => {
-  if (!currentUser) return alert("ログインしてね");
-  if (!confirm("本当に全削除する？")) return;
+function deleteAll(){
+  if(!currentUser) return;
+  if(!confirm("全部消します。本当にいい？")) return;
+  saveEvents([]);
+  selectedDateKey = null;
+  renderCalendar();
+}
 
-  try {
-    await deleteAllEvents();
-    await loadMonthEvents();
+// ===== Auth (simple) =====
+function login(){
+  const name = usernameInput.value.trim();
+  if(!name){
+    alert("ユーザー名を入力してね");
+    return;
+  }
+  currentUser = name;
+  saveUser(name);
+
+  updateUserPill();
+  setLoggedInUI(true);
+
+  pickDefaultDate();
+
+  // 予定がある月を維持したいが、基本は今月
+  currentMonth = new Date();
+  currentMonth.setDate(1);
+
+  selectedDateKey = null;
+  renderCalendar();
+}
+
+function logout(){
+  currentUser = null;
+  clearUser();
+  selectedDateKey = null;
+
+  updateUserPill();
+  setLoggedInUI(false);
+
+  // ログアウト時はカレンダーを空の枠だけに戻す
+  calendar.innerHTML = "";
+  calTitle.textContent = "----";
+  dayTitle.textContent = "日付を選択";
+  dayList.innerHTML = `<p class="muted">ログインすると予定が表示されます。</p>`;
+}
+
+// ===== Calendar Nav =====
+function prevMonth(){
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1);
+  selectedDateKey = null;
+  renderCalendar();
+}
+function nextMonth(){
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1);
+  selectedDateKey = null;
+  renderCalendar();
+}
+function goToday(){
+  currentMonth = new Date();
+  currentMonth.setDate(1);
+  selectedDateKey = ymd(new Date());
+  renderCalendar();
+  renderDayPanel(selectedDateKey);
+}
+
+// ===== Fullscreen Calendar =====
+let isFullscreen = false;
+function toggleFullscreen(){
+  if(!currentUser) return;
+
+  if(!isFullscreen){
+    calLayout.classList.add("fullscreenCal");
+    isFullscreen = true;
+  }else{
+    calLayout.classList.remove("fullscreenCal");
+    isFullscreen = false;
+  }
+}
+
+// ===== Events =====
+document.addEventListener("DOMContentLoaded", ()=>{
+  // 初期：ログイン状態復元
+  const u = readUser();
+  if(u){
+    currentUser = u;
+    updateUserPill();
+    setLoggedInUI(true);
+    pickDefaultDate();
+    currentMonth = new Date();
+    currentMonth.setDate(1);
     renderCalendar();
-    if (selectedDate) renderDayPanel(selectedDate);
-  } catch (e) {
-    alert("全削除失敗: " + (e?.message ?? e));
+  }else{
+    currentUser = null;
+    updateUserPill();
+    setLoggedInUI(false);
+    dayList.innerHTML = `<p class="muted">ログインすると予定が表示されます。</p>`;
   }
+
+  btnLogin.addEventListener("click", login);
+  btnLogout.addEventListener("click", logout);
+
+  btnAdd.addEventListener("click", addEvent);
+  btnClearInput.addEventListener("click", ()=>{
+    clearInputs();
+    pickDefaultDate();
+  });
+
+  btnPrevMonth.addEventListener("click", prevMonth);
+  btnNextMonth.addEventListener("click", nextMonth);
+  btnToday.addEventListener("click", goToday);
+
+  btnCloseDayPanel.addEventListener("click", ()=>{
+    selectedDateKey = null;
+    renderCalendar();
+  });
+
+  btnExport.addEventListener("click", exportJson);
+  btnDeleteAll.addEventListener("click", deleteAll);
+
+  btnFullscreen.addEventListener("click", toggleFullscreen);
+
+  // 編集保存
+  editForm.addEventListener("submit", (e)=>{
+    // dialog+formのsubmitが走るので止める
+    e.preventDefault();
+  });
+
+  btnSaveEdit.addEventListener("click", ()=>{
+    // dialogは method=dialog なので閉じる前に保存する
+    saveEdit();
+    editingId = null;
+    // 閉じる
+    editDialog.close();
+  });
 });
-
-/* =========================
-   10) 全画面（⛶）
-   ========================= */
-
-btnFullscreen.addEventListener("click", async () => {
-  const target = document.documentElement;
-  try {
-    if (!document.fullscreenElement) {
-      await target.requestFullscreen();
-      document.body.classList.add("isFullscreen");
-    } else {
-      await document.exitFullscreen();
-      document.body.classList.remove("isFullscreen");
-    }
-  } catch (e) {
-    // iOS Safari等でFullscreen APIが効かないことがあるのでCSS fallback
-    document.body.classList.toggle("isFullscreen");
-  }
-});
-
-document.addEventListener("fullscreenchange", () => {
-  document.body.classList.toggle("isFullscreen", !!document.fullscreenElement);
-});
-
-/* =========================
-   11) util
-   ========================= */
-
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-
-function toYmd(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function formatYmd(ymd) {
-  const [y, m, d] = ymd.split("-");
-  return `${y}年${Number(m)}月${Number(d)}日`;
-}
-
-// 初回描画（未ログイン状態）
-renderCalendar();
