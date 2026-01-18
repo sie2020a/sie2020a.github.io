@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <!-- ピンチズームを殺さない（重要） -->
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <title>予定調整くん</title>
   <link rel="stylesheet" href="./style.css" />
@@ -10,16 +11,21 @@
   <header class="topbar">
     <div class="brand">予定調整くん</div>
 
-    <div class="topbar-right" id="topbarRight">
-      <div class="pill" id="userPill">未ログイン</div>
-      <button class="btn ghost" id="btnLogout" style="display:none;">ログアウト</button>
+    <div class="topbar-right">
+      <div class="pill" id="userPill" aria-live="polite">未ログイン</div>
+
+      <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">
+        ⛶
+      </button>
+
+      <button class="btn ghost" id="btnLogout" disabled>ログアウト</button>
     </div>
   </header>
 
   <main class="wrap">
 
-    <!-- ✅ ログイン画面（ログイン前はこれだけ表示） -->
-    <section class="card" id="authCard">
+    <!-- ログイン -->
+    <section class="card" id="loginCard">
       <h2>ログイン</h2>
       <p class="muted">メールアドレスとパスワードでログインしてください。</p>
 
@@ -28,23 +34,54 @@
           <label class="label">メールアドレス</label>
           <input id="email" class="input" type="email" placeholder="example@gmail.com" autocomplete="email" />
         </div>
-
         <div>
           <label class="label">パスワード</label>
-          <input id="password" class="input" type="password" placeholder="8文字以上推奨" autocomplete="current-password" />
+          <input id="password" class="input" type="password" placeholder="パスワード" autocomplete="current-password" />
         </div>
       </div>
 
-      <div class="row gap mt16">
-        <button class="btn primary" id="btnSignIn">ログイン</button>
-        <button class="btn" id="btnSignUp">新アカウントを作る</button>
+      <div class="row gap mt12">
+        <button class="btn primary" id="btnLogin">ログイン</button>
+        <button class="btn" id="btnSignup">新アカウントを作る</button>
       </div>
 
-      <p class="muted mt16" id="authMsg"></p>
+      <p class="error" id="authError" aria-live="polite"></p>
     </section>
 
-    <!-- ✅ ログイン後に表示するアプリ本体 -->
-    <section class="card" id="appCard" style="display:none;">
+    <!-- 予定作成（ログイン後に表示） -->
+    <section class="card" id="createCard" hidden>
+      <h2>予定を作る</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label">予定名</label>
+          <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
+        </div>
+
+        <div>
+          <label class="label">メモ（任意）</label>
+          <input id="memo" class="input" placeholder="例：場所・持ち物など" />
+        </div>
+
+        <div>
+          <label class="label">日付（必須）</label>
+          <input id="date" type="date" class="input" />
+        </div>
+
+        <div>
+          <label class="label">時間（任意）</label>
+          <input id="time" type="time" class="input" />
+        </div>
+      </div>
+
+      <div class="row gap mt12">
+        <button class="btn primary" id="btnAdd">追加</button>
+        <button class="btn" id="btnClearInput">入力クリア</button>
+      </div>
+    </section>
+
+    <!-- カレンダー（ログイン後に表示） -->
+    <section class="card" id="calendarCard" hidden>
       <div class="calHead">
         <h2>カレンダー</h2>
 
@@ -53,45 +90,22 @@
           <div class="calTitle" id="calTitle">----</div>
           <button class="btn" id="btnNextMonth">▶</button>
           <button class="btn ghost" id="btnToday">今日</button>
-          <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">⛶</button>
         </div>
       </div>
 
       <div class="calLayout" id="calLayout">
+        <!-- 月カレンダー -->
         <div class="calendar" id="calendar" aria-label="月カレンダー"></div>
 
+        <!-- 日付詳細（クリックした日） -->
         <aside class="dayPanel" id="dayPanel" aria-label="選択日の詳細">
           <div class="dayPanelHead">
             <div class="dayTitle" id="dayTitle">日付を選択</div>
             <button class="btn ghost" id="btnCloseDayPanel" title="閉じる">✕</button>
           </div>
 
-          <!-- 予定追加 -->
-          <div class="dayAdd">
-            <div class="grid2">
-              <div>
-                <label class="label">予定名（必須）</label>
-                <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
-              </div>
-              <div>
-                <label class="label">時間（任意）</label>
-                <input id="time" type="time" class="input" />
-              </div>
-              <div style="grid-column:1/-1;">
-                <label class="label">メモ（任意）</label>
-                <input id="memo" class="input" placeholder="例：場所・持ち物など" />
-              </div>
-            </div>
-
-            <div class="row gap mt16">
-              <button class="btn primary" id="btnAdd">この日に追加</button>
-              <button class="btn" id="btnClearInput">入力クリア</button>
-            </div>
-            <hr class="hr">
-          </div>
-
           <div class="dayList" id="dayList">
-            <p class="muted">カレンダーの日付をクリックすると、その日の予定が見れます。</p>
+            <p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>
           </div>
         </aside>
       </div>
@@ -100,6 +114,8 @@
         <button class="btn" id="btnExport">JSONエクスポート</button>
         <button class="btn danger" id="btnDeleteAll">全削除</button>
       </div>
+
+      <p class="error mt12" id="dataError" aria-live="polite"></p>
     </section>
 
   </main>
@@ -115,12 +131,16 @@
           <input id="editTitle" class="input" />
         </div>
         <div>
-          <label class="label">時間</label>
-          <input id="editTime" type="time" class="input" />
-        </div>
-        <div style="grid-column:1/-1;">
           <label class="label">メモ</label>
           <input id="editMemo" class="input" />
+        </div>
+        <div>
+          <label class="label">日付</label>
+          <input id="editDate" type="date" class="input" />
+        </div>
+        <div>
+          <label class="label">時間</label>
+          <input id="editTime" type="time" class="input" />
         </div>
       </div>
 
@@ -131,7 +151,6 @@
     </form>
   </dialog>
 
-  <!-- Firebase（CDN） -->
   <script type="module" src="./script.js"></script>
 </body>
 </html>
