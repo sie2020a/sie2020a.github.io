@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <!-- ピンチズーム殺さない（重要） -->
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <title>予定調整くん</title>
   <link rel="stylesheet" href="./style.css" />
@@ -11,64 +10,41 @@
   <header class="topbar">
     <div class="brand">予定調整くん</div>
 
-    <div class="topbar-right">
-      <div class="pill" id="userPill" aria-live="polite">未ログイン</div>
-
-      <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">
-        ⛶
-      </button>
-
-      <button class="btn ghost" id="btnLogout">ログアウト</button>
+    <div class="topbar-right" id="topbarRight">
+      <div class="pill" id="userPill">未ログイン</div>
+      <button class="btn ghost" id="btnLogout" style="display:none;">ログアウト</button>
     </div>
   </header>
 
   <main class="wrap">
 
-    <!-- ログイン -->
-    <section class="card" id="loginCard">
-      <h2>ログイン（簡易）</h2>
-      <p class="muted">ユーザー名だけ保存します（LocalStorage）。</p>
-
-      <div class="row">
-        <input id="username" class="input" placeholder="例：progedu-taro" autocomplete="username" />
-        <button class="btn primary" id="btnLogin">ログイン</button>
-      </div>
-    </section>
-
-    <!-- 予定作成 -->
-    <section class="card" id="createCard">
-      <h2>予定を作る</h2>
+    <!-- ✅ ログイン画面（ログイン前はこれだけ表示） -->
+    <section class="card" id="authCard">
+      <h2>ログイン</h2>
+      <p class="muted">メールアドレスとパスワードでログインしてください。</p>
 
       <div class="grid2">
         <div>
-          <label class="label">予定名</label>
-          <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
+          <label class="label">メールアドレス</label>
+          <input id="email" class="input" type="email" placeholder="example@gmail.com" autocomplete="email" />
         </div>
 
         <div>
-          <label class="label">メモ（任意）</label>
-          <input id="memo" class="input" placeholder="例：場所・持ち物など" />
-        </div>
-
-        <div>
-          <label class="label">日付（必須）</label>
-          <input id="date" type="date" class="input" />
-        </div>
-
-        <div>
-          <label class="label">時間（任意）</label>
-          <input id="time" type="time" class="input" />
+          <label class="label">パスワード</label>
+          <input id="password" class="input" type="password" placeholder="8文字以上推奨" autocomplete="current-password" />
         </div>
       </div>
 
-      <div class="row gap">
-        <button class="btn primary" id="btnAdd">追加</button>
-        <button class="btn" id="btnClearInput">入力クリア</button>
+      <div class="row gap mt16">
+        <button class="btn primary" id="btnSignIn">ログイン</button>
+        <button class="btn" id="btnSignUp">新アカウントを作る</button>
       </div>
+
+      <p class="muted mt16" id="authMsg"></p>
     </section>
 
-    <!-- カレンダー＋詳細 -->
-    <section class="card" id="calendarCard">
+    <!-- ✅ ログイン後に表示するアプリ本体 -->
+    <section class="card" id="appCard" style="display:none;">
       <div class="calHead">
         <h2>カレンダー</h2>
 
@@ -77,22 +53,45 @@
           <div class="calTitle" id="calTitle">----</div>
           <button class="btn" id="btnNextMonth">▶</button>
           <button class="btn ghost" id="btnToday">今日</button>
+          <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">⛶</button>
         </div>
       </div>
 
       <div class="calLayout" id="calLayout">
-        <!-- 月カレンダー -->
         <div class="calendar" id="calendar" aria-label="月カレンダー"></div>
 
-        <!-- 日付詳細（クリックした日） -->
         <aside class="dayPanel" id="dayPanel" aria-label="選択日の詳細">
           <div class="dayPanelHead">
             <div class="dayTitle" id="dayTitle">日付を選択</div>
             <button class="btn ghost" id="btnCloseDayPanel" title="閉じる">✕</button>
           </div>
 
+          <!-- 予定追加 -->
+          <div class="dayAdd">
+            <div class="grid2">
+              <div>
+                <label class="label">予定名（必須）</label>
+                <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
+              </div>
+              <div>
+                <label class="label">時間（任意）</label>
+                <input id="time" type="time" class="input" />
+              </div>
+              <div style="grid-column:1/-1;">
+                <label class="label">メモ（任意）</label>
+                <input id="memo" class="input" placeholder="例：場所・持ち物など" />
+              </div>
+            </div>
+
+            <div class="row gap mt16">
+              <button class="btn primary" id="btnAdd">この日に追加</button>
+              <button class="btn" id="btnClearInput">入力クリア</button>
+            </div>
+            <hr class="hr">
+          </div>
+
           <div class="dayList" id="dayList">
-            <p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>
+            <p class="muted">カレンダーの日付をクリックすると、その日の予定が見れます。</p>
           </div>
         </aside>
       </div>
@@ -116,16 +115,12 @@
           <input id="editTitle" class="input" />
         </div>
         <div>
-          <label class="label">メモ</label>
-          <input id="editMemo" class="input" />
-        </div>
-        <div>
-          <label class="label">日付</label>
-          <input id="editDate" type="date" class="input" />
-        </div>
-        <div>
           <label class="label">時間</label>
           <input id="editTime" type="time" class="input" />
+        </div>
+        <div style="grid-column:1/-1;">
+          <label class="label">メモ</label>
+          <input id="editMemo" class="input" />
         </div>
       </div>
 
@@ -136,6 +131,7 @@
     </form>
   </dialog>
 
-  <script src="./script.js"></script>
+  <!-- Firebase（CDN） -->
+  <script type="module" src="./script.js"></script>
 </body>
 </html>
