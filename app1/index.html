@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <!-- ピンチズームを殺さない（重要） -->
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <title>予定調整くん</title>
   <link rel="stylesheet" href="./style.css" />
@@ -14,10 +13,7 @@
     <div class="topbar-right">
       <div class="pill" id="userPill" aria-live="polite">未ログイン</div>
 
-      <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">
-        ⛶
-      </button>
-
+      <button class="btn ghost" id="btnFullscreen" title="カレンダーを全画面">⛶</button>
       <button class="btn ghost" id="btnLogout" disabled>ログアウト</button>
     </div>
   </header>
@@ -48,7 +44,7 @@
       <p class="error" id="authError" aria-live="polite"></p>
     </section>
 
-    <!-- 予定作成（ログイン後に表示） -->
+    <!-- 予定作成（ログイン後） -->
     <section class="card" id="createCard" hidden>
       <h2>予定を作る</h2>
 
@@ -80,7 +76,7 @@
       </div>
     </section>
 
-    <!-- カレンダー（ログイン後に表示） -->
+    <!-- カレンダー（ログイン後） -->
     <section class="card" id="calendarCard" hidden>
       <div class="calHead">
         <h2>カレンダー</h2>
@@ -94,10 +90,8 @@
       </div>
 
       <div class="calLayout" id="calLayout">
-        <!-- 月カレンダー -->
         <div class="calendar" id="calendar" aria-label="月カレンダー"></div>
 
-        <!-- 日付詳細（クリックした日） -->
         <aside class="dayPanel" id="dayPanel" aria-label="選択日の詳細">
           <div class="dayPanelHead">
             <div class="dayTitle" id="dayTitle">日付を選択</div>
@@ -150,6 +144,27 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Firebase（Auth+Firestore） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6uY03dlo9wPQBRHolvJ2C7orjRdjtqYo",
+      authDomain: "schedule-app-410f9.firebaseapp.com",
+      projectId: "schedule-app-410f9",
+      storageBucket: "schedule-app-410f9.firebasestorage.app",
+      messagingSenderId: "645147677497",
+      appId: "1:645147677497:web:2a19c74c40fac828764ee8",
+      measurementId: "G-BBJ8VE29TH"
+    };
+
+    window.firebaseApp = initializeApp(firebaseConfig);
+    window.firebaseAuth = getAuth(window.firebaseApp);
+    window.firebaseDb = getFirestore(window.firebaseApp);
+  </script>
 
   <script type="module" src="./script.js"></script>
 </body>
