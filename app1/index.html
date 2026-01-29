@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <!-- ピンチズームを殺さない（重要） -->
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <title>予定調整くん</title>
   <link rel="stylesheet" href="./style.css" />
@@ -145,7 +146,7 @@
     </form>
   </dialog>
 
-  <!-- Firebase（Auth+Firestore） -->
+  <!-- Firebase（Auth + Firestore） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
@@ -161,11 +162,20 @@
       measurementId: "G-BBJ8VE29TH"
     };
 
-    window.firebaseApp = initializeApp(firebaseConfig);
-    window.firebaseAuth = getAuth(window.firebaseApp);
-    window.firebaseDb = getFirestore(window.firebaseApp);
+    // 初期化して script.js から使えるように window に置く
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.firebaseApp = app;
+    window.firebaseAuth = auth;
+    window.firebaseDb = db;
+
+    // これ入れとくと「Firebase 初期化できてるか」だけ確認できる
+    console.log("[firebase] initialized", { projectId: firebaseConfig.projectId });
   </script>
 
+  <!-- あなたの処理本体 -->
   <script type="module" src="./script.js"></script>
 </body>
 </html>
