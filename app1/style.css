@@ -1,3 +1,4 @@
+/* app1/style.css */
 :root{
   --bg:#f6f8fb;
   --card:#fff;
@@ -30,15 +31,9 @@ body{
   align-items:center;
   justify-content:space-between;
 }
-.brand{
-  font-weight:800;
-  letter-spacing:.02em;
-}
-.topbar-right{
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
+.brand{ font-weight:800; letter-spacing:.02em; }
+.topbar-right{ display:flex; gap:10px; align-items:center; }
+
 .pill{
   padding:6px 10px;
   border:1px solid var(--line);
@@ -89,11 +84,7 @@ h2{ margin:0 0 10px; }
   box-shadow: 0 0 0 4px rgba(59,130,246,.15);
 }
 
-.row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
+.row{ display:flex; align-items:center; gap:10px; }
 .row.end{ justify-content:flex-end; }
 .gap{ gap:12px; }
 .mt16{ margin-top:16px; }
@@ -137,24 +128,22 @@ h2{ margin:0 0 10px; }
 
 .btn.ghost{ background:transparent; }
 
-/* パスワード👁️ */
-.pwWrap{
-  position:relative;
-}
-.pwEye{
+/* パスワード 目アイコン */
+.pwWrap{ position:relative; }
+.pwToggle{
   position:absolute;
   right:10px;
   top:50%;
   transform:translateY(-50%);
-  border:1px solid var(--line);
-  background:#fff;
-  border-radius:10px;
-  padding:6px 8px;
+  border:none;
+  background:transparent;
   cursor:pointer;
+  font-size:16px;
+  opacity:.75;
 }
-.pwEye:hover{ background:#f3f4f6; }
+.pwToggle:hover{ opacity:1; }
 
-/* ===== カレンダー ===== */
+/* Calendar */
 .calHead{
   display:flex;
   align-items:center;
@@ -162,11 +151,8 @@ h2{ margin:0 0 10px; }
   gap:10px;
   margin-bottom:10px;
 }
-.calNav{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
+
+.calNav{ display:flex; align-items:center; gap:10px; }
 .calTitle{
   min-width: 110px;
   text-align:center;
@@ -184,13 +170,11 @@ h2{ margin:0 0 10px; }
 }
 
 .calendar{
+  min-height: 320px;
   border:1px solid var(--line);
   border-radius:14px;
   overflow:hidden;
   background:#fff;
-
-  /* これが「消える事故防止」 */
-  min-height: 320px;
 }
 
 .calWeekHead{
@@ -216,20 +200,8 @@ h2{ margin:0 0 10px; }
   border-right:1px solid var(--line);
   border-bottom:1px solid var(--line);
   padding:8px;
-  background:#fff;
-  cursor:pointer;
 }
 .calDay:nth-child(7n){ border-right:none; }
-
-.calDay.mutedDay{
-  background:#fafafa;
-  color:#9ca3af;
-}
-
-.calDay.selected{
-  outline: 3px solid rgba(37,99,235,.20);
-  outline-offset:-3px;
-}
 
 .dayNum{
   font-size:12px;
@@ -246,8 +218,6 @@ h2{ margin:0 0 10px; }
   border:1px solid var(--line);
   color:#374151;
   background:#fff;
-  min-width: 34px;
-  text-align:center;
 }
 .dayNum .tag.today{
   border-color:#bfdbfe;
@@ -255,24 +225,24 @@ h2{ margin:0 0 10px; }
   color:#1d4ed8;
 }
 
-.items{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
+.items{ display:flex; flex-direction:column; gap:6px; }
 .itemLine{
   font-size:12px;
   padding:6px 8px;
   border-radius:10px;
   background:#f3f4f6;
   color:#111827;
+  cursor:pointer;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 .itemLine:hover{ background:#e5e7eb; }
 
-/* 右側：日パネル */
+.calDay.mutedDay{ background:#fafafa; color:#9ca3af; }
+.calDay.selected{ outline: 3px solid rgba(37,99,235,.20); outline-offset:-3px; }
+
+/* Day panel */
 .dayPanel{
   border:1px solid var(--line);
   border-radius:14px;
@@ -286,14 +256,8 @@ h2{ margin:0 0 10px; }
   gap:10px;
   margin-bottom:10px;
 }
-.dayTitle{
-  font-weight:800;
-}
-.dayList{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
+.dayTitle{ font-weight:800; }
+.dayList{ display:flex; flex-direction:column; gap:10px; }
 
 .eventCard{
   border:1px solid var(--line);
@@ -314,45 +278,33 @@ h2{ margin:0 0 10px; }
   margin-top:6px;
   white-space:pre-wrap;
 }
-.eventActions{
-  display:flex;
-  gap:8px;
-}
-.smallBtn{
-  padding:8px 10px;
-  font-size:12px;
-  border-radius:12px;
-}
+.eventActions{ display:flex; gap:8px; }
+.smallBtn{ padding:8px 10px; font-size:12px; border-radius:12px; }
 
 /* ===== 全画面：カレンダーだけ表示 ===== */
 body.fullscreenCal .wrap{
-  max-width: none;
-  margin: 0;
-  padding: 0;
+  max-width:none;
+  margin:0;
+  padding:0;
   height: calc(100vh - 60px);
 }
-
 body.fullscreenCal #loginCard,
 body.fullscreenCal #createCard{
   display:none !important;
 }
-
 body.fullscreenCal #calendarCard{
-  border-radius: 0;
+  border-radius:0;
   height: calc(100vh - 60px);
-  margin: 0;
 }
-
 body.fullscreenCal .calLayout{
   height: calc(100vh - 140px);
 }
-
 body.fullscreenCal .calendar{
   height: calc(100vh - 180px);
   overflow:auto;
 }
 
-/* ピンチズーム殺さない（超大事） */
+/* ピンチズーム殺さない */
 .calendar, .calGrid, .calDay{
   touch-action: pan-x pan-y;
 }
