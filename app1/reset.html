@@ -1,3 +1,4 @@
+<!-- app1/reset.html -->
 <!doctype html>
 <html lang="ja">
 <head>
@@ -10,7 +11,7 @@
   <header class="topbar">
     <div class="brand">予定調整くん</div>
     <div class="topbar-right">
-      <button class="btn" type="button" onclick="location.href='./index.html'">戻る</button>
+      <a class="btn" href="./index.html">戻る</a>
     </div>
   </header>
 
@@ -24,7 +25,7 @@
           <label class="label" for="newPw">新しいパスワード</label>
           <div class="pwWrap">
             <input id="newPw" class="input" type="password" autocomplete="new-password" />
-            <button id="btnEye1" class="pwEye" type="button" aria-label="表示切替">👁️</button>
+            <button id="btnNewPwToggle" class="pwToggle" type="button">👁️</button>
           </div>
         </div>
 
@@ -32,21 +33,24 @@
           <label class="label" for="newPw2">新しいパスワード（確認）</label>
           <div class="pwWrap">
             <input id="newPw2" class="input" type="password" autocomplete="new-password" />
-            <button id="btnEye2" class="pwEye" type="button" aria-label="表示切替">👁️</button>
+            <button id="btnNewPw2Toggle" class="pwToggle" type="button">👁️</button>
           </div>
         </div>
       </div>
 
       <div class="row gap mt16">
-        <button id="btnDoReset" class="btn primary">変更する</button>
-        <button id="btnGoLogin" class="btn">ログインへ</button>
+        <button id="btnApply" class="btn primary" type="button">変更する</button>
+        <a class="btn" href="./index.html">ログインへ</a>
       </div>
 
       <p id="resetMsg" class="error"></p>
     </section>
   </main>
 
-  <script type="module" src="./firebase_init.js"></script>
+  <!-- Firebase init（あなたの既存ファイル） -->
+  <script src="./firebase_init.js"></script>
+
+  <!-- Reset page -->
   <script type="module" src="./reset.js"></script>
 </body>
 </html>
