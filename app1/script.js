@@ -232,21 +232,97 @@ function renderCalendar() {
   calTitle.textContent = fmtJP(y, m);
   calendar.innerHTML = "";
 
+  // 曜日ヘッダ
   const head = document.createElement("div");
-  head.className = "calWeekHead";
-  head.innerHTML = ["日","月","火","水","木","金","土"].map(s => `<div class="calDow">${s}</div>`).join("");
+  head.className = "calGrid";
+  head.innerHTML = ["日","月","火","水","木","金","土"]
+    .map(s => `<div class="calCellHead">${s}</div>`).join("");
   calendar.appendChild(head);
 
+  // 日付セルグリッド（42マス）
   const grid = document.createElement("div");
   grid.className = "calGrid";
 
   const { cells } = buildMonthGrid(y, m);
 
+  // 日付ごとにイベントをまとめる
   const byDate = new Map();
   for (const ev of events) {
     if (!byDate.has(ev.date)) byDate.set(ev.date, []);
     byDate.get(ev.date).push(ev);
   }
+  // 時間順に整列（同日の予定表示がきれいになる）
+  for (const [k, arr] of byDate.entries()) {
+    arr.sort((a,b) => (a.time || "").localeCompare(b.time || ""));
+  }
+
+  // 今日(yyyy-mm-dd)
+  const now = new Date();
+  const todayIso =
+    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+  // 選択中の日付を保持（なければ dayTitle から推測）
+  const selectedIso = (dayTitle.textContent && /^\d{4}-\d{2}-\d{2}$/.test(dayTitle.textContent))
+    ? dayTitle.textContent
+    : null;
+
+  for (const c of cells) {
+    const cell = document.createElement("div");
+    cell.className = "calDay"
+      + (c.inMonth ? "" : " mutedDay")
+      + (c.iso === selectedIso ? " selected" : "");
+
+    // 日付上部（今日タグ）
+    const isToday = (c.iso === todayIso);
+    cell.innerHTML = `
+      <div class="dayNum">
+        <span>${c.d}</span>
+        ${isToday ? `<span class="tag today">今日</span>` : `<span class="tag"> </span>`}
+      </div>
+      <div class="items"></div>
+    `;
+
+    // 月表示に出すのは “予定名だけ” にする（メモは絶対出さない）
+    const list = byDate.get(c.iso) || [];
+    const items = cell.querySelector(".items");
+
+    const MAX = 2; // 月表示の表示件数（ごちゃごちゃ防止）
+    const shown = list.slice(0, MAX);
+
+    for (const ev of shown) {
+      const line = document.createElement("div");
+      line.className = "itemLine";
+      // 時間は見せてもOK（Googleも出す）: いらなければ ev.time 部分消す
+      line.textContent = ev.time ? `${ev.time} ${ev.title}` : ev.title;
+
+      // 行クリックでその日のパネルへ（予定編集にも繋げられる）
+      line.addEventListener("click", (e) => {
+        e.stopPropagation();
+        renderDayPanel(c.iso);
+      });
+      items.appendChild(line);
+    }
+
+    // 残り件数表示
+    if (list.length > MAX) {
+      const more = document.createElement("div");
+      more.className = "itemLine";
+      more.textContent = `+${list.length - MAX}件`;
+      more.addEventListener("click", (e) => {
+        e.stopPropagation();
+        renderDayPanel(c.iso);
+      });
+      items.appendChild(more);
+    }
+
+    // マスクリックで日パネル
+    cell.addEventListener("click", () => renderDayPanel(c.iso));
+    grid.appendChild(cell);
+  }
+
+  calendar.appendChild(grid);
+}
+
 
   for (const c of cells) {
     const cell = document.createElement("button");
