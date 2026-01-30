@@ -17,6 +17,15 @@ import {
   orderBy,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
+import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+
+function resetPassword(email) {
+  sendPasswordResetEmail(auth, email)
+    .then(() => alert("リセットメール送信したよ"))
+    .catch(e => alert(e.code));
+}
+
+
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
 
