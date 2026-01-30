@@ -1,98 +1,78 @@
+// app1/reset.js （ESM）
 import {
-  verifyPasswordResetCode,
   confirmPasswordReset,
+  verifyPasswordResetCode,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
 const $ = (id) => document.getElementById(id);
 
 const auth = window.firebaseAuth;
 
-const pw1 = $("newPassword");
-const pw2 = $("newPassword2");
-const btn = $("btnDoReset");
-const err = $("resetError");
-const info = $("resetInfo");
+const newPw = $("newPw");
+const newPw2 = $("newPw2");
+const resetMsg = $("resetMsg");
 
-// URLのクエリから oobCode を取る（Firebaseのメールリンクに付いてくる）
+$("btnNewPwToggle")?.addEventListener("click", () => {
+  newPw.type = newPw.type === "password" ? "text" : "password";
+});
+$("btnNewPw2Toggle")?.addEventListener("click", () => {
+  newPw2.type = newPw2.type === "password" ? "text" : "password";
+});
+
+// URLからoobCodeを取る
 const params = new URLSearchParams(location.search);
 const oobCode = params.get("oobCode");
 
 function validatePassword(pw) {
-  if (pw.length < 6) return "パスワードは6文字以上必要です。";
-  // これ嫌なら消してOK
+  if (!pw || pw.length < 6) return "パスワードは6文字以上必要です。";
   if (!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) {
     return "英字と数字を混ぜてください（例：abc123）。";
   }
   return null;
 }
 
-function mapAuthError(e) {
-  const code = e?.code || "";
-  switch (code) {
-    case "auth/expired-action-code":
-      return "リンクの期限切れです。もう一度『パスワード忘れた』からやり直して。";
-    case "auth/invalid-action-code":
-      return "リンクが壊れてるか、既に使われた可能性。もう一度やり直して。";
-    case "auth/weak-password":
-      return "パスワードが弱い（短い）です。6文字以上にして。";
-    default:
-      return code || (e?.message ?? "不明なエラー");
-  }
-}
-
-async function init() {
-  err.textContent = "";
-  info.textContent = "";
+async function boot() {
+  resetMsg.textContent = "";
 
   if (!oobCode) {
-    err.textContent = "再設定リンクが不正です（oobCodeがありません）。";
-    btn.disabled = true;
+    resetMsg.textContent = "再設定リンクが不正です（oobCodeがありません）。※メールのリンクから開いてください。";
     return;
   }
 
-  // コードが生きてるかチェック（メールアドレスを取得できる）
   try {
-    const email = await verifyPasswordResetCode(auth, oobCode);
-    info.textContent = `対象アカウント：${email}`;
+    // コード有効チェック（メールが古いとか失効とかもここで弾ける）
+    await verifyPasswordResetCode(auth, oobCode);
   } catch (e) {
-    err.textContent = mapAuthError(e);
-    btn.disabled = true;
+    resetMsg.textContent = `リンクが無効：${e.code || e.message}`;
   }
 }
 
-btn.addEventListener("click", async () => {
-  err.textContent = "";
-  info.textContent = info.textContent || "";
+$("btnApply")?.addEventListener("click", async () => {
+  resetMsg.textContent = "";
 
-  const a = pw1.value;
-  const b = pw2.value;
-
-  if (!a || !b) {
-    err.textContent = "2回とも入力して。";
-    return;
-  }
-  if (a !== b) {
-    err.textContent = "2回のパスワードが一致してない。";
+  if (!oobCode) {
+    resetMsg.textContent = "再設定リンクが不正です（oobCodeがありません）。";
     return;
   }
 
-  const v = validatePassword(a);
-  if (v) {
-    err.textContent = v;
-    return;
-  }
+  const pw1 = newPw.value;
+  const pw2 = newPw2.value;
 
-  btn.disabled = true;
+  const err = validatePassword(pw1);
+  if (err) { resetMsg.textContent = err; return; }
+  if (pw1 !== pw2) { resetMsg.textContent = "2回のパスワードが一致しません。"; return; }
+
   try {
-    await confirmPasswordReset(auth, oobCode, a);
-    info.textContent = "パスワードを変更しました。ログイン画面に戻ってログインしてください。";
-    pw1.value = "";
-    pw2.value = "";
+    await confirmPasswordReset(auth, oobCode, pw1);
+    resetMsg.style.color = "#15803d";
+    resetMsg.textContent = "変更しました。3秒後にログイン画面へ戻ります。";
+
+    setTimeout(() => {
+      location.href = "./index.html";
+    }, 3000);
   } catch (e) {
-    err.textContent = mapAuthError(e);
-  } finally {
-    btn.disabled = false;
+    resetMsg.textContent = `変更エラー：${e.code || e.message}`;
   }
 });
 
-init();
+boot();
