@@ -341,7 +341,6 @@ function renderCalendar() {
     grid.appendChild(cell);
   }
   calendar.appendChild(grid);
-}
 
 function renderDayPanel(iso) {
   dayTitle.textContent = iso;
