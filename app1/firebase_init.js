@@ -5,14 +5,14 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/12.8.0/firebase
 
 // ▼ここをFirebaseコンソールの値に置き換え
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyD6uY03dlo9wPQBRHolvJ2C7orjRdjtqYo",
+  authDomain: "schedule-app-410f9.firebaseapp.com",
+  projectId: "schedule-app-410f9",
+  storageBucket: "schedule-app-410f9.firebasestorage.app",
+  messagingSenderId: "645147677497",
+  appId: "1:645147677497:web:2a19c74c40fac828764ee8",
+  measurementId: "G-BBJ8VE29TH"
 };
-
 const app = initializeApp(firebaseConfig);
 
 // script.js がここから取る
