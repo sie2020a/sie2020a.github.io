@@ -1,3 +1,5 @@
+/* app1/style.css */
+
 :root{
   --bg:#f6f8fb;
   --card:#fff;
@@ -11,59 +13,8 @@
   --radius:16px;
 }
 
-/* ===== カレンダーが消える事故を防ぐ保険 ===== */
-.calendar{
-  min-height: 320px;          /* 高さ0事故を防ぐ */
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-.calDow{
-  font-weight: 700;
-  font-size: 12px;
-  color: #6b7280;
-  text-align: center;
-  padding: 6px 0;
-}
-
-.calCell{
-  border: 1px solid #eef2f7;
-  border-radius: 10px;
-  padding: 8px;
-  min-height: 72px;
-  background: #fafafa;
-}
-
-.calNum{
-  font-size: 12px;
-  color: #111827;
-  font-weight: 700;
-}
-
-.calEvents{
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.calEvt{
-  font-size: 11px;
-  padding: 3px 6px;
-  border-radius: 999px;
-  background: #e8f0ff;
-  color: #1d4ed8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 *{ box-sizing:border-box; }
+
 body{
   margin:0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -222,11 +173,13 @@ h3{ margin:0 0 10px; }
   .calLayout{ grid-template-columns: 1fr; }
 }
 
+/* Googleっぽいカレンダー本体 */
 .calendar{
   border:1px solid var(--line);
   border-radius:14px;
   overflow:hidden;
   background:#fff;
+  min-height: 320px; /* 高さ0事故だけ防ぐ */
 }
 
 .calGrid{
@@ -266,6 +219,8 @@ h3{ margin:0 0 10px; }
   border:1px solid var(--line);
   color:#374151;
   background:#fff;
+  min-width: 34px;
+  text-align:center;
 }
 .dayNum .tag.today{
   border-color:#bfdbfe;
@@ -364,4 +319,36 @@ h3{ margin:0 0 10px; }
 }
 .dialogBody{
   padding:16px;
+}
+
+/* ===== 全画面：カレンダーだけ表示 ===== */
+body.fullscreenCal .wrap{
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  height: calc(100vh - 60px);
+}
+
+body.fullscreenCal #loginCard,
+body.fullscreenCal #createCard{
+  display:none !important;
+}
+
+body.fullscreenCal #calendarCard{
+  border-radius: 0;
+  height: calc(100vh - 60px);
+}
+
+body.fullscreenCal .calLayout{
+  height: calc(100vh - 140px);
+}
+
+body.fullscreenCal .calendar{
+  height: calc(100vh - 180px);
+  overflow:auto;
+}
+
+/* ピンチズーム殺さない */
+.calendar, .calGrid, .calDay{
+  touch-action: pan-x pan-y;
 }
