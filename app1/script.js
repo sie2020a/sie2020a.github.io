@@ -353,17 +353,18 @@ function renderDayPanel(iso) {
   }
 
   dayList.innerHTML = list.map(e => `
-    <div class="dayItem">
-      <div class="dayItemTop">
-        <div class="dayItemTitle">${escapeHtml(e.title)}</div>
-        <div class="dayItemTime">${escapeHtml(e.time || "")}</div>
-      </div>
-      ${e.memo ? `<div class="dayItemMemo">${escapeHtml(e.memo)}</div>` : ""}
-      <div class="dayItemActions">
-        <button class="btn danger small" data-del="${e.id}">削除</button>
+  <div class="eventCard">
+    <div class="eventTop">
+      <div class="eventName">${escapeHtml(e.title)}</div>
+      <div class="eventActions">
+        <button class="btn danger smallBtn" data-del="${e.id}">削除</button>
       </div>
     </div>
-  `).join("");
+    <div class="eventMeta">
+${escapeHtml(e.time || "")}${e.memo ? `\n${escapeHtml(e.memo)}` : ""}
+    </div>
+  </div>
+`).join("");
 
   dayList.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
