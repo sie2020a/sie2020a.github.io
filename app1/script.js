@@ -289,17 +289,86 @@ function renderCalendar() {
     const MAX = 2; // 月表示の表示件数（ごちゃごちゃ防止）
     const shown = list.slice(0, MAX);
 
+function renderCalendar() {
+  if (!currentYm) currentYm = todayYm();
+  const { y, m } = currentYm;
+
+  calTitle.textContent = fmtJP(y, m);
+  calendar.innerHTML = "";
+
+  // 曜日ヘッダ
+  const head = document.createElement("div");
+  head.className = "calWeekHead";
+  head.innerHTML = ["日","月","火","水","木","金","土"]
+    .map(s => `<div class="calCellHead">${s}</div>`)
+    .join("");
+  calendar.appendChild(head);
+
+  // グリッド
+  const grid = document.createElement("div");
+  grid.className = "calGrid";
+
+  const { cells } = buildMonthGrid(y, m);
+
+  // 日付 -> 予定配列
+  const byDate = new Map();
+  for (const ev of events) {
+    if (!byDate.has(ev.date)) byDate.set(ev.date, []);
+    byDate.get(ev.date).push(ev);
+  }
+
+  const MAX = 2; // 月表示で見せる予定の最大行数（ごちゃごちゃ防止）
+
+  for (const c of cells) {
+    const cell = document.createElement("div");
+    cell.className = "calDay" + (c.inMonth ? "" : " mutedDay");
+    cell.dataset.iso = c.iso;
+
+    // 日付表示（右上に today タグとか付けたいならここで）
+    const top = document.createElement("div");
+    top.className = "dayNum";
+
+    const left = document.createElement("span");
+    left.textContent = String(c.d);
+
+    const right = document.createElement("span");
+    right.className = "tag";
+    // 今日ならタグ表示
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    if (c.iso === todayIso) {
+      right.textContent = "今日";
+      right.classList.add("today");
+    } else {
+      right.textContent = "";
+      right.style.border = "none";
+      right.style.background = "transparent";
+    }
+
+    top.appendChild(left);
+    top.appendChild(right);
+
+    // 予定リスト（タイトルだけ、時間は任意）
+    const items = document.createElement("div");
+    items.className = "items";
+
+    const list = (byDate.get(c.iso) || [])
+      .slice()
+      .sort((a,b) => (a.time||"").localeCompare(b.time||""));
+
+    const shown = list.slice(0, MAX);
+
     for (const ev of shown) {
       const line = document.createElement("div");
       line.className = "itemLine";
-      // 時間は見せてもOK（Googleも出す）: いらなければ ev.time 部分消す
       line.textContent = ev.time ? `${ev.time} ${ev.title}` : ev.title;
 
-      // 行クリックでその日のパネルへ（予定編集にも繋げられる）
+      // 行クリック → 日パネル
       line.addEventListener("click", (e) => {
         e.stopPropagation();
         renderDayPanel(c.iso);
       });
+
       items.appendChild(line);
     }
 
@@ -315,41 +384,18 @@ function renderCalendar() {
       items.appendChild(more);
     }
 
-    // マスクリックで日パネル
+    cell.appendChild(top);
+    cell.appendChild(items);
+
+    // マスクリック → 日パネル
     cell.addEventListener("click", () => renderDayPanel(c.iso));
+
     grid.appendChild(cell);
   }
 
   calendar.appendChild(grid);
 }
 
-
-  for (const c of cells) {
-    const cell = document.createElement("button");
-    cell.type = "button";
-    cell.className = "calCell" + (c.inMonth ? "" : " mutedCell");
-    cell.dataset.iso = c.iso;
-
-    const badgeCount = (byDate.get(c.iso) || []).length;
-
-    cell.innerHTML = `
-      <div class="calDayNum">${c.d}</div>
-      ${badgeCount ? `<div class="calBadge">${badgeCount}</div>` : ``}
-    `;
-
-    cell.addEventListener("click", () => renderDayPanel(c.iso));
-    grid.appendChild(cell);
-  }
-  calendar.appendChild(grid);
-
-function renderDayPanel(iso) {
-  dayTitle.textContent = iso;
-  const list = events.filter(e => e.date === iso).sort((a,b) => (a.time||"").localeCompare(b.time||""));
-
-  if (!list.length) {
-    dayList.innerHTML = `<p class="muted">この日の予定はありません。</p>`;
-    return;
-  }
 
   dayList.innerHTML = list.map(e => `
   <div class="eventCard">
