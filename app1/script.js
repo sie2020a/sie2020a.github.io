@@ -91,14 +91,36 @@ function showLoggedIn(user) {
 }
 
 // ---------- Auth ----------
+function validatePassword(pw) {
+  if (pw.length < 6) return "パスワードは6文字以上必要です。";
+  // 好みで強化（英字＋数字）
+  if (!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) {
+    return "英字と数字を混ぜてください（例：abc123）。";
+  }
+  return null;
+}
+
 $("btnSignup").addEventListener("click", async () => {
   authError.textContent = "";
+
+  const email = emailEl.value.trim();
+  const pass = passEl.value;
+
+  // 入力チェック（Firebaseに送る前に止める）
+  const pwErr = validatePassword(pass);
+  if (pwErr) {
+    authError.textContent = pwErr;
+    return;
+  }
+
   try {
-    await createUserWithEmailAndPassword(auth, emailEl.value.trim(), passEl.value);
+    await createUserWithEmailAndPassword(auth, email, pass);
   } catch (e) {
+    // Firebase側で弾かれた場合もわかりやすく
     authError.textContent = `作成エラー：${e.code || e.message}`;
   }
 });
+
 
 $("btnLogin").addEventListener("click", async () => {
   authError.textContent = "";
