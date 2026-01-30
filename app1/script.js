@@ -27,6 +27,7 @@ const calendarCard = $("calendarCard");
 
 const userPill = $("userPill");
 const btnLogout = $("btnLogout");
+const btnFullscreen = $("btnFullscreen");
 
 const emailEl = $("email");
 const passEl = $("password");
@@ -36,7 +37,6 @@ const titleEl = $("title");
 const memoEl = $("memo");
 const dateEl = $("date");
 const timeEl = $("time");
-
 const dataError = $("dataError");
 
 const calTitle = $("calTitle");
@@ -44,34 +44,31 @@ const calendar = $("calendar");
 const dayTitle = $("dayTitle");
 const dayList = $("dayList");
 
-const btnFullscreen = $("btnFullscreen");
-const btnPwToggle = $("btnPwToggle");
-
 // ---------- Firebase ----------
 const auth = window.firebaseAuth;
 const db = window.firebaseDb;
 
-// ---------- Helpers ----------
+// ---------- helpers ----------
+function fmtJP(y, m) { return `${y}年${m}月`; }
 function todayYm() {
   const d = new Date();
   return { y: d.getFullYear(), m: d.getMonth() + 1 };
 }
-function fmtJP(y, m) {
-  return `${y}年${m}月`;
+function isoOf(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({
+  return String(s).replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[c]));
 }
 
-// ---------- State ----------
+// ---------- UI state ----------
 let currentUser = null;
-let currentYm = null; // {y, m}
-let events = []; // {id, title, memo, date, time}
+let currentYm = null; // {y,m}
+let events = [];
 let unsubscribe = null;
 
-// ---------- UI ----------
 function showLoggedOut() {
   currentUser = null;
   userPill.textContent = "未ログイン";
@@ -84,7 +81,6 @@ function showLoggedOut() {
   authError.textContent = "";
   dataError.textContent = "";
 }
-
 function showLoggedIn(user) {
   currentUser = user;
   userPill.textContent = user.email ?? "ログイン中";
@@ -98,37 +94,14 @@ function showLoggedIn(user) {
   dataError.textContent = "";
 }
 
-// ---------- Password toggle ----------
-btnPwToggle?.addEventListener("click", () => {
-  if (!passEl) return;
-  passEl.type = passEl.type === "password" ? "text" : "password";
-});
-
-// ---------- Fullscreen calendar ----------
-btnFullscreen?.addEventListener("click", async () => {
-  try {
-    const target = calendarCard;
-    if (!document.fullscreenElement) {
-      await target.requestFullscreen();
-      document.body.classList.add("fullscreenCal");
-    } else {
-      await document.exitFullscreen();
-      document.body.classList.remove("fullscreenCal");
-    }
-  } catch (e) {
-    console.error(e);
-  }
-});
-document.addEventListener("fullscreenchange", () => {
-  if (!document.fullscreenElement) {
-    document.body.classList.remove("fullscreenCal");
-  }
+// ---------- password eye ----------
+$("btnPwEye")?.addEventListener("click", () => {
+  passEl.type = (passEl.type === "password") ? "text" : "password";
 });
 
 // ---------- Auth ----------
 function validatePassword(pw) {
   if (pw.length < 6) return "パスワードは6文字以上必要です。";
-  // 好みで強化（英字＋数字）
   if (!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) {
     return "英字と数字を混ぜてください（例：abc123）。";
   }
@@ -141,10 +114,7 @@ $("btnSignup").addEventListener("click", async () => {
   const pass = passEl.value;
 
   const pwErr = validatePassword(pass);
-  if (pwErr) {
-    authError.textContent = pwErr;
-    return;
-  }
+  if (pwErr) { authError.textContent = pwErr; return; }
 
   try {
     await createUserWithEmailAndPassword(auth, email, pass);
@@ -166,19 +136,19 @@ btnLogout.addEventListener("click", async () => {
   await signOut(auth);
 });
 
-// ---------- Reset Password (A:メール) ----------
+// ---------- Reset Password (A: email link) ----------
 const actionCodeSettings = {
+  // ✅ ここ超重要：あなたの reset.html の絶対URL
   url: "https://sie2020a.github.io/app1/reset.html",
-  handleCodeInApp: false,
+  // ✅ 自作の reset.html でコード処理するので true が安全
+  handleCodeInApp: true,
 };
 
 $("btnReset")?.addEventListener("click", async () => {
   authError.textContent = "";
   const email = emailEl.value.trim();
-  if (!email) {
-    authError.textContent = "メールアドレス入れて";
-    return;
-  }
+  if (!email) { authError.textContent = "メールアドレス入れて"; return; }
+
   try {
     await sendPasswordResetEmail(auth, email, actionCodeSettings);
     authError.textContent = "リセットメール送信しました（メールのリンクを開いて）";
@@ -233,9 +203,11 @@ $("btnDeleteAll").addEventListener("click", async () => {
   const jobs = [];
   snap.forEach((d) => jobs.push(deleteDoc(d.ref)));
   await Promise.all(jobs);
+
+  closeDayPanel();
 });
 
-// ---------- Calendar ----------
+// ---------- Calendar core ----------
 function buildMonthGrid(y, m) {
   const first = new Date(y, m - 1, 1);
   const firstDow = first.getDay(); // 0 sun
@@ -250,11 +222,18 @@ function buildMonthGrid(y, m) {
       m: d.getMonth() + 1,
       d: d.getDate(),
       inMonth: (d.getMonth() + 1) === m,
-      iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`,
+      iso: isoOf(d),
     });
   }
   return { cells };
 }
+
+function closeDayPanel() {
+  dayTitle.textContent = "日付を選択";
+  dayList.innerHTML = `<p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>`;
+  renderCalendar();
+}
+$("btnCloseDayPanel")?.addEventListener("click", closeDayPanel);
 
 function renderCalendar() {
   if (!currentYm) currentYm = todayYm();
@@ -263,36 +242,36 @@ function renderCalendar() {
   calTitle.textContent = fmtJP(y, m);
   calendar.innerHTML = "";
 
-  // week head
+  // 曜日ヘッダ
   const head = document.createElement("div");
   head.className = "calWeekHead";
   head.innerHTML = ["日","月","火","水","木","金","土"]
-    .map(s => `<div class="calCellHead">${s}</div>`).join("");
+    .map(s => `<div class="calCellHead">${s}</div>`)
+    .join("");
   calendar.appendChild(head);
 
+  // グリッド
   const grid = document.createElement("div");
   grid.className = "calGrid";
 
   const { cells } = buildMonthGrid(y, m);
 
+  // 日付 -> 予定配列
   const byDate = new Map();
   for (const ev of events) {
     if (!byDate.has(ev.date)) byDate.set(ev.date, []);
     byDate.get(ev.date).push(ev);
   }
-  for (const [k, arr] of byDate.entries()) {
-    arr.sort((a,b) => (a.time || "").localeCompare(b.time || ""));
+  for (const arr of byDate.values()) {
+    arr.sort((a,b) => (a.time||"").localeCompare(b.time||""));
   }
 
-  const now = new Date();
-  const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const todayIso = isoOf(new Date());
+  const selectedIso = (dayTitle.textContent && /^\d{4}-\d{2}-\d{2}$/.test(dayTitle.textContent))
+    ? dayTitle.textContent
+    : null;
 
-  const selectedIso =
-    (dayTitle.textContent && /^\d{4}-\d{2}-\d{2}$/.test(dayTitle.textContent))
-      ? dayTitle.textContent
-      : null;
-
-  const MAX = 2; // 月表示で見せる最大行数
+  const MAX = 2;
 
   for (const c of cells) {
     const cell = document.createElement("div");
@@ -300,32 +279,42 @@ function renderCalendar() {
       "calDay" +
       (c.inMonth ? "" : " mutedDay") +
       (c.iso === selectedIso ? " selected" : "");
-
-    const isToday = (c.iso === todayIso);
+    cell.dataset.iso = c.iso;
 
     const top = document.createElement("div");
     top.className = "dayNum";
-    top.innerHTML = `
-      <span>${c.d}</span>
-      ${isToday ? `<span class="tag today">今日</span>` : `<span class="tag" style="border:none;background:transparent;"></span>`}
-    `;
+
+    const left = document.createElement("span");
+    left.textContent = String(c.d);
+
+    const right = document.createElement("span");
+    right.className = "tag";
+    if (c.iso === todayIso) {
+      right.textContent = "今日";
+      right.classList.add("today");
+    } else {
+      right.textContent = "";
+      right.style.border = "none";
+      right.style.background = "transparent";
+    }
+
+    top.appendChild(left);
+    top.appendChild(right);
 
     const items = document.createElement("div");
     items.className = "items";
 
-    const list = byDate.get(c.iso) || [];
+    const list = (byDate.get(c.iso) || []);
     const shown = list.slice(0, MAX);
 
     for (const ev of shown) {
       const line = document.createElement("div");
       line.className = "itemLine";
       line.textContent = ev.time ? `${ev.time} ${ev.title}` : ev.title;
-
       line.addEventListener("click", (e) => {
         e.stopPropagation();
         renderDayPanel(c.iso);
       });
-
       items.appendChild(line);
     }
 
@@ -360,7 +349,7 @@ function renderDayPanel(iso) {
 
   if (!list.length) {
     dayList.innerHTML = `<p class="muted">この日の予定はありません。</p>`;
-    renderCalendar(); // selected 更新
+    renderCalendar();
     return;
   }
 
@@ -383,35 +372,56 @@ function renderDayPanel(iso) {
     });
   });
 
-  renderCalendar(); // selected 更新
+  renderCalendar();
 }
 
+// ---------- Month nav ----------
 $("btnPrevMonth").addEventListener("click", () => {
-  const { y, m } = currentYm;
+  const { y, m } = currentYm || todayYm();
   const d = new Date(y, m - 2, 1);
   currentYm = { y: d.getFullYear(), m: d.getMonth() + 1 };
   renderCalendar();
 });
-
 $("btnNextMonth").addEventListener("click", () => {
-  const { y, m } = currentYm;
+  const { y, m } = currentYm || todayYm();
   const d = new Date(y, m, 1);
   currentYm = { y: d.getFullYear(), m: d.getMonth() + 1 };
   renderCalendar();
 });
-
 $("btnToday").addEventListener("click", () => {
   currentYm = todayYm();
   renderCalendar();
 });
 
-$("btnCloseDayPanel")?.addEventListener("click", () => {
-  dayTitle.textContent = "日付を選択";
-  dayList.innerHTML = `<p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>`;
-  renderCalendar();
+// ---------- Fullscreen calendar ----------
+btnFullscreen?.addEventListener("click", async () => {
+  try {
+    const target = calendarCard;
+    if (!document.fullscreenElement) {
+      await target.requestFullscreen();
+      document.body.classList.add("fullscreenCal");
+    } else {
+      await document.exitFullscreen();
+      document.body.classList.remove("fullscreenCal");
+    }
+  } catch (e) {
+    console.error(e);
+  }
+});
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) document.body.classList.remove("fullscreenCal");
 });
 
-// ---------- Listen ----------
+// ---------- Export ----------
+$("btnExport").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "events.json";
+  a.click();
+});
+
+// ---------- Listen (Auth + Realtime DB) ----------
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     if (unsubscribe) unsubscribe();
@@ -426,7 +436,6 @@ onAuthStateChanged(auth, (user) => {
 
   if (unsubscribe) unsubscribe();
   const q = query(userEventsCol(user.uid), orderBy("createdAt", "asc"));
-
   unsubscribe = onSnapshot(q, (snap) => {
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderCalendar();
@@ -435,13 +444,4 @@ onAuthStateChanged(auth, (user) => {
   });
 
   renderCalendar();
-});
-
-// ---------- Export ----------
-$("btnExport").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "events.json";
-  a.click();
 });
