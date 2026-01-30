@@ -10,37 +10,42 @@
   <header class="topbar">
     <div class="brand">予定調整くん</div>
     <div class="topbar-right">
-      <a class="btn" href="./index.html">戻る</a>
+      <button class="btn" type="button" onclick="location.href='./index.html'">戻る</button>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="card" id="resetCard">
+    <section class="card">
       <h2>パスワード再設定</h2>
       <p class="muted">新しいパスワードを2回入力してください。</p>
 
       <div class="grid2">
         <div>
-          <label class="label" for="newPassword">新しいパスワード</label>
-          <input id="newPassword" class="input" type="password" autocomplete="new-password" />
+          <label class="label" for="newPw">新しいパスワード</label>
+          <div class="pwWrap">
+            <input id="newPw" class="input" type="password" autocomplete="new-password" />
+            <button id="btnEye1" class="pwEye" type="button" aria-label="表示切替">👁️</button>
+          </div>
         </div>
+
         <div>
-          <label class="label" for="newPassword2">新しいパスワード（確認）</label>
-          <input id="newPassword2" class="input" type="password" autocomplete="new-password" />
+          <label class="label" for="newPw2">新しいパスワード（確認）</label>
+          <div class="pwWrap">
+            <input id="newPw2" class="input" type="password" autocomplete="new-password" />
+            <button id="btnEye2" class="pwEye" type="button" aria-label="表示切替">👁️</button>
+          </div>
         </div>
       </div>
 
-      <div class="row mt16 gap">
-        <button class="btn primary" id="btnDoReset">変更する</button>
-        <a class="btn" href="./index.html">ログインへ</a>
+      <div class="row gap mt16">
+        <button id="btnDoReset" class="btn primary">変更する</button>
+        <button id="btnGoLogin" class="btn">ログインへ</button>
       </div>
 
-      <p class="error" id="resetError"></p>
-      <p class="muted" id="resetInfo"></p>
+      <p id="resetMsg" class="error"></p>
     </section>
   </main>
 
-  <!-- 重要：firebase_init.js は index.html と同じものを読み込む -->
   <script type="module" src="./firebase_init.js"></script>
   <script type="module" src="./reset.js"></script>
 </body>
