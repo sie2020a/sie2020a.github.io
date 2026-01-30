@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
 import {
@@ -16,15 +17,6 @@ import {
   query,
   orderBy,
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-
-import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
-
-function resetPassword(email) {
-  sendPasswordResetEmail(auth, email)
-    .then(() => alert("リセットメール送信したよ"))
-    .catch(e => alert(e.code));
-}
-
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -55,6 +47,24 @@ const dayList = $("dayList");
 // ---------- Firebase ----------
 const auth = window.firebaseAuth;
 const db = window.firebaseDb;
+
+// ---------- Reset Password ----------
+$("btnReset")?.addEventListener("click", async () => {
+  authError.textContent = "";
+  const email = emailEl.value.trim();
+
+  if (!email) {
+    authError.textContent = "メールアドレス入れて";
+    return;
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    authError.textContent = "リセットメール送信しました";
+  } catch (e) {
+    authError.textContent = `リセットエラー：${e.code || e.message}`;
+  }
+});
 
 // ---------- State ----------
 let currentUser = null;
@@ -129,7 +139,6 @@ $("btnSignup").addEventListener("click", async () => {
     authError.textContent = `作成エラー：${e.code || e.message}`;
   }
 });
-
 
 $("btnLogin").addEventListener("click", async () => {
   authError.textContent = "";
