@@ -11,6 +11,58 @@
   --radius:16px;
 }
 
+/* ===== カレンダーが消える事故を防ぐ保険 ===== */
+.calendar{
+  min-height: 320px;          /* 高さ0事故を防ぐ */
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.calDow{
+  font-weight: 700;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  padding: 6px 0;
+}
+
+.calCell{
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 8px;
+  min-height: 72px;
+  background: #fafafa;
+}
+
+.calNum{
+  font-size: 12px;
+  color: #111827;
+  font-weight: 700;
+}
+
+.calEvents{
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calEvt{
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #1d4ed8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 *{ box-sizing:border-box; }
 body{
   margin:0;
