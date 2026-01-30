@@ -44,36 +44,18 @@ const calendar = $("calendar");
 const dayTitle = $("dayTitle");
 const dayList = $("dayList");
 
+const btnFullscreen = $("btnFullscreen");
+
 // ---------- Firebase ----------
 const auth = window.firebaseAuth;
 const db = window.firebaseDb;
-
-// ---------- Reset Password ----------
-$("btnReset")?.addEventListener("click", async () => {
-  authError.textContent = "";
-  const email = emailEl.value.trim();
-
-  if (!email) {
-    authError.textContent = "メールアドレス入れて";
-    return;
-  }
-
-  try {
-    await sendPasswordResetEmail(auth, email);
-    authError.textContent = "リセットメール送信しました";
-  } catch (e) {
-    authError.textContent = `リセットエラー：${e.code || e.message}`;
-  }
-});
 
 // ---------- State ----------
 let currentUser = null;
 let currentYm = null; // {y, m}
 let events = []; // {id, title, memo, date, time}
+let unsubscribe = null;
 
-function ymKey(y, m) {
-  return `${y}-${String(m).padStart(2, "0")}`;
-}
 function todayYm() {
   const d = new Date();
   return { y: d.getFullYear(), m: d.getMonth() + 1 };
@@ -109,23 +91,58 @@ function showLoggedIn(user) {
   dataError.textContent = "";
 }
 
-// ---------- Auth ----------
+// ---------- Reset Password ----------
+$("btnReset")?.addEventListener("click", async () => {
+  authError.textContent = "";
+  const email = emailEl.value.trim();
+  if (!email) {
+    authError.textContent = "メールアドレス入れて";
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    authError.textContent = "リセットメール送信しました";
+  } catch (e) {
+    authError.textContent = `リセットエラー：${e.code || e.message}`;
+  }
+});
+
+// ---------- Auth helpers ----------
 function validatePassword(pw) {
   if (pw.length < 6) return "パスワードは6文字以上必要です。";
-  // 好みで強化（英字＋数字）
+  // 強化したい場合だけON（嫌ならこのifを消してOK）
   if (!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) {
     return "英字と数字を混ぜてください（例：abc123）。";
   }
   return null;
 }
 
-$("btnSignup").addEventListener("click", async () => {
-  authError.textContent = "";
+function mapAuthError(e) {
+  const code = e?.code || "";
+  switch (code) {
+    case "auth/weak-password":
+      return "パスワードが弱い（短い）です。6文字以上にして。";
+    case "auth/email-already-in-use":
+      return "そのメールは既に使われています。ログインしてください。";
+    case "auth/too-many-requests":
+      return "短時間に試しすぎ。少し待ってから再試行して。";
+    case "auth/invalid-credential":
+      return "メールかパスワードが違う、またはアカウントが存在しない可能性。";
+    case "auth/user-not-found":
+      return "そのメールのユーザーが見つかりません。";
+    case "auth/wrong-password":
+      return "パスワードが違います。";
+    default:
+      return code || (e?.message ?? "不明なエラー");
+  }
+}
 
+// ---------- Auth actions ----------
+$("btnSignup")?.addEventListener("click", async () => {
+  authError.textContent = "";
   const email = emailEl.value.trim();
   const pass = passEl.value;
 
-  // 入力チェック（Firebaseに送る前に止める）
   const pwErr = validatePassword(pass);
   if (pwErr) {
     authError.textContent = pwErr;
@@ -135,21 +152,23 @@ $("btnSignup").addEventListener("click", async () => {
   try {
     await createUserWithEmailAndPassword(auth, email, pass);
   } catch (e) {
-    // Firebase側で弾かれた場合もわかりやすく
-    authError.textContent = `作成エラー：${e.code || e.message}`;
+    authError.textContent = `作成エラー：${mapAuthError(e)}`;
   }
 });
 
-$("btnLogin").addEventListener("click", async () => {
+$("btnLogin")?.addEventListener("click", async () => {
   authError.textContent = "";
+  const email = emailEl.value.trim();
+  const pass = passEl.value;
+
   try {
-    await signInWithEmailAndPassword(auth, emailEl.value.trim(), passEl.value);
+    await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
-    authError.textContent = `ログインエラー：${e.code || e.message}`;
+    authError.textContent = `ログインエラー：${mapAuthError(e)}`;
   }
 });
 
-btnLogout.addEventListener("click", async () => {
+btnLogout?.addEventListener("click", async () => {
   await signOut(auth);
 });
 
@@ -181,16 +200,16 @@ async function addEvent() {
   timeEl.value = "";
 }
 
-$("btnAdd").addEventListener("click", addEvent);
+$("btnAdd")?.addEventListener("click", addEvent);
 
-$("btnClearInput").addEventListener("click", () => {
+$("btnClearInput")?.addEventListener("click", () => {
   titleEl.value = "";
   memoEl.value = "";
   dateEl.value = "";
   timeEl.value = "";
 });
 
-$("btnDeleteAll").addEventListener("click", async () => {
+$("btnDeleteAll")?.addEventListener("click", async () => {
   if (!currentUser) return;
   const ok = confirm("本当に全削除する？");
   if (!ok) return;
@@ -201,14 +220,11 @@ $("btnDeleteAll").addEventListener("click", async () => {
   await Promise.all(jobs);
 });
 
-// ---------- Calendar (minimum) ----------
+// ---------- Calendar helpers ----------
 function buildMonthGrid(y, m) {
-  // 1日の曜日
   const first = new Date(y, m - 1, 1);
   const firstDow = first.getDay(); // 0 sun
-  const daysInMonth = new Date(y, m, 0).getDate();
 
-  // 6週 x 7日
   const cells = [];
   const start = 1 - firstDow;
   for (let i = 0; i < 42; i++) {
@@ -218,77 +234,26 @@ function buildMonthGrid(y, m) {
       y: d.getFullYear(),
       m: d.getMonth() + 1,
       d: d.getDate(),
-      inMonth: (d.getMonth() + 1) === m,
-      iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+      inMonth: d.getMonth() + 1 === m,
+      iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`,
     });
   }
-  return { cells, daysInMonth };
+  return { cells };
 }
 
-function renderCalendar() {
-  if (!currentYm) currentYm = todayYm();
-  const { y, m } = currentYm;
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+}
 
-  calTitle.textContent = fmtJP(y, m);
-  calendar.innerHTML = "";
-
-  // 曜日ヘッダ
-  const head = document.createElement("div");
-  head.className = "calGrid";
-  head.innerHTML = ["日","月","火","水","木","金","土"]
-    .map(s => `<div class="calCellHead">${s}</div>`).join("");
-  calendar.appendChild(head);
-
-  // 日付セルグリッド（42マス）
-  const grid = document.createElement("div");
-  grid.className = "calGrid";
-
-  const { cells } = buildMonthGrid(y, m);
-
-  // 日付ごとにイベントをまとめる
-  const byDate = new Map();
-  for (const ev of events) {
-    if (!byDate.has(ev.date)) byDate.set(ev.date, []);
-    byDate.get(ev.date).push(ev);
-  }
-  // 時間順に整列（同日の予定表示がきれいになる）
-  for (const [k, arr] of byDate.entries()) {
-    arr.sort((a,b) => (a.time || "").localeCompare(b.time || ""));
-  }
-
-  // 今日(yyyy-mm-dd)
-  const now = new Date();
-  const todayIso =
-    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-
-  // 選択中の日付を保持（なければ dayTitle から推測）
-  const selectedIso = (dayTitle.textContent && /^\d{4}-\d{2}-\d{2}$/.test(dayTitle.textContent))
-    ? dayTitle.textContent
-    : null;
-
-  for (const c of cells) {
-    const cell = document.createElement("div");
-    cell.className = "calDay"
-      + (c.inMonth ? "" : " mutedDay")
-      + (c.iso === selectedIso ? " selected" : "");
-
-    // 日付上部（今日タグ）
-    const isToday = (c.iso === todayIso);
-    cell.innerHTML = `
-      <div class="dayNum">
-        <span>${c.d}</span>
-        ${isToday ? `<span class="tag today">今日</span>` : `<span class="tag"> </span>`}
-      </div>
-      <div class="items"></div>
-    `;
-
-    // 月表示に出すのは “予定名だけ” にする（メモは絶対出さない）
-    const list = byDate.get(c.iso) || [];
-    const items = cell.querySelector(".items");
-
-    const MAX = 2; // 月表示の表示件数（ごちゃごちゃ防止）
-    const shown = list.slice(0, MAX);
-
+// ---------- Calendar render ----------
 function renderCalendar() {
   if (!currentYm) currentYm = todayYm();
   const { y, m } = currentYm;
@@ -299,8 +264,8 @@ function renderCalendar() {
   // 曜日ヘッダ
   const head = document.createElement("div");
   head.className = "calWeekHead";
-  head.innerHTML = ["日","月","火","水","木","金","土"]
-    .map(s => `<div class="calCellHead">${s}</div>`)
+  head.innerHTML = ["日", "月", "火", "水", "木", "金", "土"]
+    .map((s) => `<div class="calCellHead">${s}</div>`)
     .join("");
   calendar.appendChild(head);
 
@@ -317,14 +282,20 @@ function renderCalendar() {
     byDate.get(ev.date).push(ev);
   }
 
-  const MAX = 2; // 月表示で見せる予定の最大行数（ごちゃごちゃ防止）
+  const MAX = 2; // 月表示で見せる最大行数
+
+  // 今日ISO
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")}`;
 
   for (const c of cells) {
     const cell = document.createElement("div");
     cell.className = "calDay" + (c.inMonth ? "" : " mutedDay");
     cell.dataset.iso = c.iso;
 
-    // 日付表示（右上に today タグとか付けたいならここで）
+    // 日付上部
     const top = document.createElement("div");
     top.className = "dayNum";
 
@@ -333,9 +304,6 @@ function renderCalendar() {
 
     const right = document.createElement("span");
     right.className = "tag";
-    // 今日ならタグ表示
-    const now = new Date();
-    const todayIso = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     if (c.iso === todayIso) {
       right.textContent = "今日";
       right.classList.add("today");
@@ -348,13 +316,13 @@ function renderCalendar() {
     top.appendChild(left);
     top.appendChild(right);
 
-    // 予定リスト（タイトルだけ、時間は任意）
+    // 予定リスト（タイトルだけ。メモは絶対表示しない）
     const items = document.createElement("div");
     items.className = "items";
 
     const list = (byDate.get(c.iso) || [])
       .slice()
-      .sort((a,b) => (a.time||"").localeCompare(b.time||""));
+      .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
     const shown = list.slice(0, MAX);
 
@@ -396,8 +364,23 @@ function renderCalendar() {
   calendar.appendChild(grid);
 }
 
+function renderDayPanel(iso) {
+  dayTitle.textContent = iso;
 
-  dayList.innerHTML = list.map(e => `
+  const list = events
+    .filter((e) => e.date === iso)
+    .slice()
+    .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+
+  if (!list.length) {
+    dayList.innerHTML = `<p class="muted">この日の予定はありません。</p>`;
+    return;
+  }
+
+  // 日パネルではメモを見せる（Googleカレンダーっぽく）
+  dayList.innerHTML = list
+    .map(
+      (e) => `
   <div class="eventCard">
     <div class="eventTop">
       <div class="eventName">${escapeHtml(e.title)}</div>
@@ -405,13 +388,13 @@ function renderCalendar() {
         <button class="btn danger smallBtn" data-del="${e.id}">削除</button>
       </div>
     </div>
-    <div class="eventMeta">
-${escapeHtml(e.time || "")}${e.memo ? `\n${escapeHtml(e.memo)}` : ""}
-    </div>
+    <div class="eventMeta">${escapeHtml(e.time || "")}${e.memo ? `\n${escapeHtml(e.memo)}` : ""}</div>
   </div>
-`).join("");
+`
+    )
+    .join("");
 
-  dayList.querySelectorAll("[data-del]").forEach(btn => {
+  dayList.querySelectorAll("[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.del;
       await deleteDoc(doc(db, "users", currentUser.uid, "events", id));
@@ -419,27 +402,22 @@ ${escapeHtml(e.time || "")}${e.memo ? `\n${escapeHtml(e.memo)}` : ""}
   });
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[c]));
-}
-
-$("btnPrevMonth").addEventListener("click", () => {
-  const { y, m } = currentYm;
+// ---------- Month nav ----------
+$("btnPrevMonth")?.addEventListener("click", () => {
+  const { y, m } = currentYm || todayYm();
   const d = new Date(y, m - 2, 1);
   currentYm = { y: d.getFullYear(), m: d.getMonth() + 1 };
   renderCalendar();
 });
 
-$("btnNextMonth").addEventListener("click", () => {
-  const { y, m } = currentYm;
+$("btnNextMonth")?.addEventListener("click", () => {
+  const { y, m } = currentYm || todayYm();
   const d = new Date(y, m, 1);
   currentYm = { y: d.getFullYear(), m: d.getMonth() + 1 };
   renderCalendar();
 });
 
-$("btnToday").addEventListener("click", () => {
+$("btnToday")?.addEventListener("click", () => {
   currentYm = todayYm();
   renderCalendar();
 });
@@ -449,9 +427,29 @@ $("btnCloseDayPanel")?.addEventListener("click", () => {
   dayList.innerHTML = `<p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>`;
 });
 
-// ---------- Listen ----------
-let unsubscribe = null;
+// ---------- Fullscreen ----------
+btnFullscreen?.addEventListener("click", async () => {
+  try {
+    const target = calendarCard; // カレンダーのカードを全画面化
+    if (!document.fullscreenElement) {
+      await target.requestFullscreen();
+      document.body.classList.add("fullscreenCal");
+    } else {
+      await document.exitFullscreen();
+      document.body.classList.remove("fullscreenCal");
+    }
+  } catch (e) {
+    console.error(e);
+  }
+});
 
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    document.body.classList.remove("fullscreenCal");
+  }
+});
+
+// ---------- Listen auth ----------
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     if (unsubscribe) unsubscribe();
@@ -467,18 +465,22 @@ onAuthStateChanged(auth, (user) => {
   // Firestore購読（リアルタイム）
   if (unsubscribe) unsubscribe();
   const q = query(userEventsCol(user.uid), orderBy("createdAt", "asc"));
-  unsubscribe = onSnapshot(q, (snap) => {
-    events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderCalendar();
-  }, (err) => {
-    dataError.textContent = `DBエラー：${err.code || err.message}`;
-  });
+  unsubscribe = onSnapshot(
+    q,
+    (snap) => {
+      events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderCalendar();
+    },
+    (err) => {
+      dataError.textContent = `DBエラー：${err.code || err.message}`;
+    }
+  );
 
   renderCalendar();
 });
 
 // ---------- Export ----------
-$("btnExport").addEventListener("click", () => {
+$("btnExport")?.addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
