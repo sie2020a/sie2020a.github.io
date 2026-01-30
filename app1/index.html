@@ -1,3 +1,4 @@
+<!-- app1/index.html -->
 <!doctype html>
 <html lang="ja">
 <head>
@@ -10,14 +11,14 @@
   <header class="topbar">
     <div class="brand">予定調整くん</div>
     <div class="topbar-right">
-      <span id="userPill" class="pill">未ログイン</span>
-      <button id="btnFullscreen" class="btn ghost" title="カレンダー全画面">⛶</button>
+      <div id="userPill" class="pill">未ログイン</div>
+      <button id="btnFullscreen" class="btn ghost" title="カレンダーを全画面">⛶</button>
       <button id="btnLogout" class="btn" disabled>ログアウト</button>
     </div>
   </header>
 
   <main class="wrap">
-    <!-- LOGIN -->
+    <!-- Login -->
     <section id="loginCard" class="card">
       <h2>ログイン</h2>
       <p class="muted">メールアドレスとパスワードでログインしてください。</p>
@@ -31,35 +32,34 @@
         <div>
           <label class="label" for="password">パスワード</label>
           <div class="pwWrap">
-            <input id="password" class="input" type="password" autocomplete="current-password" />
-            <button id="btnPwEye" class="pwEye" type="button" aria-label="パスワード表示切替">👁️</button>
+            <input id="password" class="input" type="password" autocomplete="current-password" placeholder="••••••••" />
+            <button id="btnPwToggle" class="pwToggle" type="button" aria-label="パスワード表示切替">👁️</button>
           </div>
         </div>
       </div>
 
       <div class="row gap mt16">
-        <button id="btnLogin" class="btn primary">ログイン</button>
-        <button id="btnSignup" class="btn">新アカウントを作る</button>
-        <button id="btnReset" class="btn">パスワード忘れた</button>
+        <button id="btnLogin" class="btn primary" type="button">ログイン</button>
+        <button id="btnSignup" class="btn" type="button">新アカウントを作る</button>
+        <button id="btnReset" class="btn" type="button">パスワード忘れた</button>
       </div>
 
       <p id="authError" class="error"></p>
     </section>
 
-    <!-- CREATE -->
+    <!-- Create event -->
     <section id="createCard" class="card" hidden>
       <h2>予定を作る</h2>
 
       <div class="grid2">
         <div>
           <label class="label" for="title">予定名</label>
-          <input id="title" class="input" placeholder="例：学校 / 仕事 / 通院" />
+          <input id="title" class="input" type="text" placeholder="例：学校 / 仕事 / 通院" />
         </div>
         <div>
           <label class="label" for="memo">メモ（任意）</label>
-          <input id="memo" class="input" placeholder="例：場所・持ち物など" />
+          <input id="memo" class="input" type="text" placeholder="例：場所・持ち物など" />
         </div>
-
         <div>
           <label class="label" for="date">日付（必須）</label>
           <input id="date" class="input" type="date" />
@@ -71,18 +71,17 @@
       </div>
 
       <div class="row gap mt16">
-        <button id="btnAdd" class="btn primary">追加</button>
-        <button id="btnClearInput" class="btn">入力クリア</button>
+        <button id="btnAdd" class="btn primary" type="button">追加</button>
+        <button id="btnClearInput" class="btn" type="button">入力クリア</button>
       </div>
 
       <p id="dataError" class="error"></p>
     </section>
 
-    <!-- CALENDAR -->
+    <!-- Calendar -->
     <section id="calendarCard" class="card" hidden>
       <div class="calHead">
-        <h2 style="margin:0;">カレンダー</h2>
-
+        <h2 style="margin:0">カレンダー</h2>
         <div class="calNav">
           <button id="btnPrevMonth" class="btn" type="button">◀</button>
           <div id="calTitle" class="calTitle">----</div>
@@ -94,22 +93,20 @@
       <div class="calLayout">
         <div>
           <div id="calendar" class="calendar"></div>
-
-          <div class="row end mt16 gap">
-            <button id="btnExport" class="btn">JSONエクスポート</button>
-            <button id="btnDeleteAll" class="btn danger">全削除</button>
+          <div class="row end gap mt16">
+            <button id="btnExport" class="btn" type="button">JSONエクスポート</button>
+            <button id="btnDeleteAll" class="btn danger" type="button">全削除</button>
           </div>
         </div>
 
         <aside class="dayPanel">
           <div class="dayPanelHead">
             <div>
-              <div class="dayTitle">日付を選択</div>
-              <div id="dayTitle" class="muted">日付を選択</div>
+              <div class="dayTitle" id="dayTitle">日付を選択</div>
+              <p class="muted" style="margin:6px 0 0;">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>
             </div>
-            <button id="btnCloseDayPanel" class="btn">×</button>
+            <button id="btnCloseDayPanel" class="btn" type="button">×</button>
           </div>
-
           <div id="dayList" class="dayList">
             <p class="muted">カレンダーの日付をクリックすると、その日の予定とメモが見れます。</p>
           </div>
@@ -118,8 +115,9 @@
     </section>
   </main>
 
-  <!-- Firebase init -->
-  <script type="module" src="./firebase_init.js"></script>
+  <!-- Firebase init（あなたの既存ファイル） -->
+  <script src="./firebase_init.js"></script>
+
   <!-- App -->
   <script type="module" src="./script.js"></script>
 </body>
