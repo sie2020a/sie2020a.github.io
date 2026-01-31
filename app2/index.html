@@ -33,7 +33,12 @@
 
     <h1>あなたのいいところは?</h1>
     <p>診断したい名前を入れて下さい</p>
-    <input type="text" id="user-name" size="40" maxlength="20">
+    input {
+  font-size: 4vw;   /* ← これでスマホでも見やすい */
+  padding: 2vw;
+  width: 70vw;
+}
+
     <button id="assessment">診断する</button>
     <div id="result-area"></div>
     <div id="tweet-area"></div>
