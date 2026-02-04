@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   getAnalytics(app);
 }
 
