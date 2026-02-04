@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "YOUR_KEY",
@@ -7,13 +9,17 @@ const firebaseConfig = {
   projectId: "YOUR_PROJECT",
   storageBucket: "YOUR_PROJECT.appspot.com",
   messagingSenderId: "XXXX",
-  appId: "XXXX"
+  appId: "XXXX",
+  measurementId: "G-XXXX" // 無ければ消してOK
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 
 if (typeof window !== "undefined") {
-  getAnalytics(app);
+  try {
+    getAnalytics(app);
+  } catch (e) {}
 }
 
-export default app;
+export const auth = getAuth(app);
+export const db = getFirestore(app);
