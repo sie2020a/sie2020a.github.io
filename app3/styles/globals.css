@@ -1,92 +1,115 @@
-:root {
-  --bg: #0b0f17;
-  --panel: #121a28;
-  --panel2: #0f1522;
-  --text: #e7eefc;
-  --muted: #a7b4cf;
-  --line: rgba(255,255,255,0.10);
-  --btn: #1c2840;
-  --btn2: #2a3a5f;
-  --danger: #53202a;
+import { useEffect, useState } from "react";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../firebase";
+
+export default function Home() {
+  const [text, setText] = useState("");
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, "diary"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      setItems(
+        snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }))
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const save = async () => {
+    const v = text.trim();
+    if (!v) return;
+
+    await addDoc(collection(db, "diary"), {
+      text: v,
+      createdAt: serverTimestamp(),
+    });
+
+    setText("");
+    load();
+  };
+
+  const fmt = (ts) => {
+    if (!ts || !ts.toDate) return "";
+    const d = ts.toDate();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day} ${hh}:${mm}`;
+  };
+
+  return (
+    <div className="wrap">
+      <header className="header">
+        <div>
+          <h1 className="title">ひとこと日記</h1>
+          <p className="sub">Firestore に保存して一覧表示します</p>
+        </div>
+        <div className="right">
+          <div className="uid">
+            status: <code>{loading ? "loading" : "ready"}</code>
+          </div>
+        </div>
+      </header>
+
+      <main className="main">
+        <div className="form">
+          <input
+            className="input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="今日のひとこと…"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+            }}
+          />
+          <button className="btn primary" onClick={save} disabled={loading}>
+            保存
+          </button>
+          <button className="btn" onClick={load} disabled={loading}>
+            更新
+          </button>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="empty">{loading ? "読み込み中…" : "まだ日記がありません"}</div>
+        ) : (
+          <div className="list">
+            {items.map((x) => (
+              <div className="card" key={x.id}>
+                <div className="cardText" style={{ whiteSpace: "pre-wrap" }}>
+                  {x.text}
+                </div>
+                <div className="cardFoot">
+                  <div className="date">{fmt(x.createdAt)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="footer">app3 / Next.js + Firestore</div>
+      </main>
+    </div>
+  );
 }
-
-* { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; }
-
-.wrap { max-width: 860px; margin: 0 auto; padding: 18px; }
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: linear-gradient(180deg, var(--panel), var(--panel2));
-}
-.title { margin: 0; font-size: 22px; }
-.sub { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
-
-.right { display: flex; align-items: flex-end; gap: 10px; flex-direction: column; }
-.uid { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
-.uid code { color: var(--text); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 8px; }
-
-.main { margin-top: 14px; }
-.form {
-  display: flex; gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel2);
-}
-.input {
-  flex: 1;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.04);
-  color: var(--text);
-  padding: 12px 12px;
-  border-radius: 12px;
-  outline: none;
-}
-.input::placeholder { color: rgba(231,238,252,0.45); }
-
-.btn {
-  border: 1px solid var(--line);
-  background: var(--btn);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover { background: var(--btn2); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.primary { background: #24406e; }
-.primary:hover { background: #2b4c85; }
-
-.danger { background: var(--danger); }
-.danger:hover { background: #6a2633; }
-
-.list { margin-top: 12px; display: grid; gap: 10px; }
-.card {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel);
-  padding: 12px;
-}
-.cardText { font-size: 16px; line-height: 1.5; }
-.cardFoot {
-  margin-top: 10px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-}
-.date { color: var(--muted); font-size: 12px; }
-
-.empty {
-  padding: 16px;
-  border: 1px dashed var(--line);
-  border-radius: 14px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.footer { margin-top: 18px; color: var(--muted); text-align: center; }
