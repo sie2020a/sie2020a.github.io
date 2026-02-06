@@ -1,14 +1,13 @@
-// app3/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "ここにあなたのAPIキー",
-  authDomain: "ここにauthDomain",
-  projectId: "ここにprojectId",
-  storageBucket: "ここにstorageBucket",
-  messagingSenderId: "ここにmessagingSenderId",
-  appId: "ここにappId",
+  apiKey: "ここ",
+  authDomain: "diary-32180.firebaseapp.com",
+  projectId: "diary-32180",
+  storageBucket: "diary-32180.appspot.com",
+  messagingSenderId: "ここ",
+  appId: "ここ"
 };
 
 const app = initializeApp(firebaseConfig);
