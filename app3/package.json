@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && next export",
-    "start": "next start",
-    "lint": "next lint"
+    "build": "next build",
+    "export": "next export -o ../app3_site",
+    "build:gh": "next build && next export -o ../app3_site"
   },
   "dependencies": {
     "firebase": "^10.0.0",
