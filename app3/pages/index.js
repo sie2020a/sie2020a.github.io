@@ -1,82 +1,111 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  collection,
   addDoc,
-  getDocs,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
   orderBy,
   query,
-  serverTimestamp
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function Home() {
+  const entriesRef = useMemo(() => collection(db, "entries"), []);
   const [text, setText] = useState("");
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
+  useEffect(() => {
+    const q = query(entriesRef, orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setItems(rows);
+    });
+    return () => unsub();
+  }, [entriesRef]);
+
+  const addEntry = async () => {
+    const v = text.trim();
+    if (!v) return;
+    setBusy(true);
     try {
-      const q = query(collection(db, "diary"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      setItems(
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-      );
+      await addDoc(entriesRef, {
+        text: v,
+        createdAt: serverTimestamp(),
+      });
+      setText("");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  const removeEntry = async (id) => {
+    if (!confirm("削除する？")) return;
+    await deleteDoc(doc(db, "entries", id));
+  };
 
-  const save = async () => {
-    const v = text.trim();
-    if (!v) return;
+  const onKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") addEntry();
+  };
 
-    await addDoc(collection(db, "diary"), {
-      text: v,
-      createdAt: serverTimestamp(),
-    });
-
-    setText("");
-    load();
+  const fmt = (ts) => {
+    if (!ts?.toDate) return "";
+    const d = ts.toDate();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}`;
   };
 
   return (
-    <main style={{ padding: 20, maxWidth: 720, margin: "0 auto" }}>
-      <h1 style={{ marginTop: 0 }}>ひとこと日記</h1>
+    <div className="wrap">
+      <header className="header">
+        <div>
+          <h1 className="title">Diary</h1>
+          <p className="sub">Ctrl / ⌘ + Enter で追加</p>
+        </div>
+        <div className="right">
+          <a className="btn" href="../index.html">← 作品一覧へ</a>
+        </div>
+      </header>
 
-      <textarea
-        rows={4}
-        style={{ width: "100%", padding: 10 }}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="今日のひとこと…"
-      />
+      <main className="main">
+        <div className="form">
+          <input
+            className="input"
+            placeholder="今日あったこと…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+          />
+          <button className="btn primary" onClick={addEntry} disabled={busy}>
+            追加
+          </button>
+        </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button onClick={save}>保存</button>
-        <button onClick={load} disabled={loading}>
-          {loading ? "読み込み中…" : "更新"}
-        </button>
-      </div>
+        <div className="list">
+          {items.length === 0 ? (
+            <div className="empty">まだ何もない</div>
+          ) : (
+            items.map((it) => (
+              <div className="card" key={it.id}>
+                <div className="cardText">{it.text}</div>
+                <div className="cardFoot">
+                  <div className="date">{fmt(it.createdAt)}</div>
+                  <button className="btn danger" onClick={() => removeEntry(it.id)}>
+                    削除
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
 
-      <hr style={{ margin: "16px 0" }} />
-
-      {items.length === 0 ? (
-        <p style={{ opacity: 0.7 }}>{loading ? "読み込み中…" : "まだ日記がありません"}</p>
-      ) : (
-        items.map((x) => (
-          <div key={x.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
-            <div style={{ whiteSpace: "pre-wrap" }}>{x.text}</div>
-          </div>
-        ))
-      )}
-    </main>
+        <footer className="footer">Firestore保存 / GitHub Pages公開</footer>
+      </main>
+    </div>
   );
 }
