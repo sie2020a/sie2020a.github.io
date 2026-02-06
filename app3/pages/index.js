@@ -1,82 +1,82 @@
-// app3/pages/index.js
 import { useEffect, useState } from "react";
-import { collection, addDoc, getDocs, orderBy, query, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp
+} from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [entries, setEntries] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // 日記一覧を取得
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
+    setLoading(true);
+    try {
       const q = query(collection(db, "diary"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      setEntries(
-        snap.docs.map(d => ({
+      setItems(
+        snap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
         }))
       );
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
-  // 保存
-  const saveDiary = async () => {
-    if (!text.trim()) return;
+  const save = async () => {
+    const v = text.trim();
+    if (!v) return;
+
     await addDoc(collection(db, "diary"), {
-      text,
+      text: v,
       createdAt: serverTimestamp(),
     });
+
     setText("");
-    location.reload();
+    load();
   };
 
   return (
-    <div className="wrap">
-      <div className="header">
-        <div>
-          <h1 className="title">日記</h1>
-          <div className="sub">Firebase + Next.js</div>
-        </div>
-      </div>
+    <main style={{ padding: 20, maxWidth: 720, margin: "0 auto" }}>
+      <h1 style={{ marginTop: 0 }}>ひとこと日記</h1>
 
-      <div className="main">
-        <textarea
-          rows={6}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="今日の出来事を書く"
-          style={{ width: "100%", padding: "12px", borderRadius: "8px" }}
-        />
-        <button
-          onClick={saveDiary}
-          style={{
-            marginTop: "10px",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            background: "var(--btn)",
-            color: "#fff",
-            border: "none",
-          }}
-        >
-          保存
+      <textarea
+        rows={4}
+        style={{ width: "100%", padding: 10 }}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="今日のひとこと…"
+      />
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={save}>保存</button>
+        <button onClick={load} disabled={loading}>
+          {loading ? "読み込み中…" : "更新"}
         </button>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        {entries.map(e => (
-          <div key={e.id} style={{ marginBottom: "14px", padding: "12px", background: "var(--panel)", borderRadius: "8px" }}>
-            <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-              {e.createdAt?.toDate?.().toLocaleString() || ""}
-            </div>
-            <div style={{ marginTop: "6px", whiteSpace: "pre-wrap" }}>
-              {e.text}
-            </div>
-          </div>
-        ))}
       </div>
-    </div>
+
+      <hr style={{ margin: "16px 0" }} />
+
+      {items.length === 0 ? (
+        <p style={{ opacity: 0.7 }}>{loading ? "読み込み中…" : "まだ日記がありません"}</p>
+      ) : (
+        items.map((x) => (
+          <div key={x.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
+            <div style={{ whiteSpace: "pre-wrap" }}>{x.text}</div>
+          </div>
+        ))
+      )}
+    </main>
   );
 }
