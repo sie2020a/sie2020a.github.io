@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diary Login</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
+    label { display:block; margin: 12px 0 6px; }
+    input { width: 100%; padding: 10px; font-size: 16px; }
+    button { padding: 10px 14px; font-size: 16px; margin-top: 12px; cursor:pointer; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .row button { flex:1; }
+    .msg { margin-top: 14px; white-space: pre-wrap; }
+    .ok { color: #0a7; }
+    .ng { color: #c33; }
+    small { color:#666; }
+  </style>
+</head>
+<body>
+  <h1>Diary</h1>
+  <p><small>ログインして日記を開きます。</small></p>
+
+  <label>メールアドレス</label>
+  <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+
+  <label>パスワード</label>
+  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+
+  <div class="row">
+    <button id="btnLogin">ログイン</button>
+    <button id="btnSignup">新しいアカウントで登録</button>
+  </div>
+
+  <button id="btnReset">パスワードを忘れた（リセットメール送信）</button>
+
+  <div id="msg" class="msg"></div>
+
+  <script type="module">
+    // --- Firebase (CDN) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      sendPasswordResetEmail
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+    // ▼ここを diary-32180 の Webアプリ設定の値に置き換え
+    const firebaseConfig = {
+      apiKey: "ここ",
+      authDomain: "diary-32180.firebaseapp.com",
+      projectId: "diary-32180",
+      storageBucket: "diary-32180.appspot.com",
+      messagingSenderId: "ここ",
+      appId: "ここ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const $email = document.getElementById("email");
+    const $pass = document.getElementById("password");
+    const $msg  = document.getElementById("msg");
+
+    function show(text, ok=false){
+      $msg.textContent = text;
+      $msg.className = "msg " + (ok ? "ok" : "ng");
+    }
+
+    // ログイン成功後に飛ばす先（app3 にする）
+    const NEXT_URL = "../app3/";
+
+    document.getElementById("btnLogin").addEventListener("click", async () => {
+      const email = $email.value.trim();
+      const pass  = $pass.value;
+
+      if(!email || !pass) return show("メールとパスワードを入れて。");
+
+      try{
+        await signInWithEmailAndPassword(auth, email, pass);
+        show("ログインOK。日記を開きます…", true);
+        location.href = NEXT_URL;
+      }catch(e){
+        show("ログイン失敗：\n" + e.code + "\n" + (e.message || ""));
+      }
+    });
+
+    document.getElementById("btnSignup").addEventListener("click", async () => {
+      const email = $email.value.trim();
+      const pass  = $pass.value;
+
+      if(!email || !pass) return show("メールとパスワードを入れて。");
+      if(pass.length < 6) return show("パスワードは6文字以上にして。");
+
+      try{
+        await createUserWithEmailAndPassword(auth, email, pass);
+        show("登録OK。そのまま日記を開きます…", true);
+        location.href = NEXT_URL;
+      }catch(e){
+        show("登録失敗：\n" + e.code + "\n" + (e.message || ""));
+      }
+    });
+
+    document.getElementById("btnReset").addEventListener("click", async () => {
+      const email = $email.value.trim();
+      if(!email) return show("リセットしたいメールアドレスを入れて。");
+
+      try{
+        await sendPasswordResetEmail(auth, email);
+        show("リセットメールを送った。受信箱を見て。", true);
+      }catch(e){
+        show("送信失敗：\n" + e.code + "\n" + (e.message || ""));
+      }
+    });
+  </script>
+</body>
+</html>
