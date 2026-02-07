@@ -3,10 +3,86 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Diary</title>
+  <title>Diary Login</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif; margin: 40px; }
+    .box { max-width: 420px; }
+    input { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; }
+    button { padding: 12px 14px; font-size: 16px; cursor: pointer; }
+    .err { color: #b00020; margin-top: 10px; white-space: pre-wrap; }
+    .ok { color: #0a7a0a; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h1>Diary</h1>
-  <p>ここに日記アプリを置きます。</p>
+  <div class="box">
+    <h1>Diary</h1>
+    <p>ログインして日記を開きます。</p>
+
+    <input id="email" type="email" placeholder="メールアドレス" autocomplete="email" />
+    <input id="pass" type="password" placeholder="パスワード" autocomplete="current-password" />
+
+    <button id="loginBtn">ログイン</button>
+
+    <div id="msg" class="err"></div>
+  </div>
+
+  <script type="module">
+    // Firebase v9 modular (CDN)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+
+    // ▼ここをFirebaseコンソールの値に置き換え
+    const firebaseConfig = {
+      apiKey: "ここ",
+      authDomain: "diary-32180.firebaseapp.com",
+      projectId: "diary-32180",
+      storageBucket: "diary-32180.appspot.com",
+      messagingSenderId: "ここ",
+      appId: "ここ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const emailEl = document.getElementById("email");
+    const passEl  = document.getElementById("pass");
+    const msgEl   = document.getElementById("msg");
+    const btn     = document.getElementById("loginBtn");
+
+    function showError(e) {
+      // ありがちなエラーを日本語に寄せる
+      const code = e?.code || "";
+      if (code.includes("auth/invalid-credential")) return "メールかパスワードが違います。";
+      if (code.includes("auth/user-not-found")) return "そのメールのユーザーが存在しません。";
+      if (code.includes("auth/wrong-password")) return "パスワードが違います。";
+      if (code.includes("auth/invalid-email")) return "メールアドレスの形式が変です。";
+      if (code.includes("auth/too-many-requests")) return "失敗が多すぎ。少し待ってから。";
+      return `ログイン失敗: ${code}\n${e?.message || ""}`;
+    }
+
+    btn.addEventListener("click", async () => {
+      msgEl.className = "err";
+      msgEl.textContent = "";
+      btn.disabled = true;
+
+      const email = emailEl.value.trim();
+      const pass  = passEl.value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        // 成功 → app3へ
+        location.href = "/app3/";
+      } catch (e) {
+        msgEl.textContent = showError(e);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Enterでもログイン
+    passEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btn.click();
+    });
+  </script>
 </body>
 </html>
