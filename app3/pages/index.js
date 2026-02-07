@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   addDoc,
   collection,
@@ -9,32 +11,47 @@ import {
   query,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 
 export default function Home() {
+  const router = useRouter();
   const entriesRef = useMemo(() => collection(db, "entries"), []);
+  const [ready, setReady] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const [text, setText] = useState("");
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
 
+  // ✅ 未ログインなら /login に戻す（これが無いと「押しても開かない」系になる）
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        router.replace("/login");
+        return;
+      }
+      setUserEmail(u.email || "");
+      setReady(true);
+    });
+    return () => unsub();
+  }, [router]);
+
+  // Firestore購読（ログイン確認後に動かす）
+  useEffect(() => {
+    if (!ready) return;
     const q = query(entriesRef, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setItems(rows);
     });
     return () => unsub();
-  }, [entriesRef]);
+  }, [entriesRef, ready]);
 
   const addEntry = async () => {
     const v = text.trim();
     if (!v) return;
     setBusy(true);
     try {
-      await addDoc(entriesRef, {
-        text: v,
-        createdAt: serverTimestamp(),
-      });
+      await addDoc(entriesRef, { text: v, createdAt: serverTimestamp() });
       setText("");
     } finally {
       setBusy(false);
@@ -44,6 +61,11 @@ export default function Home() {
   const removeEntry = async (id) => {
     if (!confirm("削除する？")) return;
     await deleteDoc(doc(db, "entries", id));
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+    router.replace("/login");
   };
 
   const onKeyDown = (e) => {
@@ -60,15 +82,26 @@ export default function Home() {
     ).padStart(2, "0")}`;
   };
 
+  if (!ready) {
+    return (
+      <div className="wrap">
+        <div className="center">認証確認中…</div>
+      </div>
+    );
+  }
+
   return (
     <div className="wrap">
       <header className="header">
         <div>
           <h1 className="title">Diary</h1>
           <p className="sub">Ctrl / ⌘ + Enter で追加</p>
+          <p className="sub2">{userEmail}</p>
         </div>
         <div className="right">
-          <a className="btn" href="../index.html">← 作品一覧へ</a>
+          <button className="btn" onClick={logout}>
+            ログアウト
+          </button>
         </div>
       </header>
 
