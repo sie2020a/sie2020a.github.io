@@ -1,115 +1,152 @@
-import { useEffect, useState } from "react";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../firebase";
+:root {
+  --bg: #ffffff;
+  --fg: #111;
+  --muted: #666;
+  --line: #ddd;
+}
 
-export default function Home() {
-  const [text, setText] = useState("");
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, "diary"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      setItems(
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }))
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+.wrap {
+  max-width: 760px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
 
-  useEffect(() => {
-    load();
-  }, []);
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
 
-  const save = async () => {
-    const v = text.trim();
-    if (!v) return;
+.title {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: 0.5px;
+}
 
-    await addDoc(collection(db, "diary"), {
-      text: v,
-      createdAt: serverTimestamp(),
-    });
+.sub {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.sub2 {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
 
-    setText("");
-    load();
-  };
+.main { margin-top: 8px; }
 
-  const fmt = (ts) => {
-    if (!ts || !ts.toDate) return "";
-    const d = ts.toDate();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${day} ${hh}:${mm}`;
-  };
+.form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
 
-  return (
-    <div className="wrap">
-      <header className="header">
-        <div>
-          <h1 className="title">ひとこと日記</h1>
-          <p className="sub">Firestore に保存して一覧表示します</p>
-        </div>
-        <div className="right">
-          <div className="uid">
-            status: <code>{loading ? "loading" : "ready"}</code>
-          </div>
-        </div>
-      </header>
+.formCol {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
 
-      <main className="main">
-        <div className="form">
-          <input
-            className="input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="今日のひとこと…"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") save();
-            }}
-          />
-          <button className="btn primary" onClick={save} disabled={loading}>
-            保存
-          </button>
-          <button className="btn" onClick={load} disabled={loading}>
-            更新
-          </button>
-        </div>
+.label { font-size: 13px; color: var(--muted); }
 
-        {items.length === 0 ? (
-          <div className="empty">{loading ? "読み込み中…" : "まだ日記がありません"}</div>
-        ) : (
-          <div className="list">
-            {items.map((x) => (
-              <div className="card" key={x.id}>
-                <div className="cardText" style={{ whiteSpace: "pre-wrap" }}>
-                  {x.text}
-                </div>
-                <div className="cardFoot">
-                  <div className="date">{fmt(x.createdAt)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
 
-        <div className="footer">app3 / Next.js + Firestore</div>
-      </main>
-    </div>
-  );
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.btn {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f7f7;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn.primary {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+.btn.danger {
+  background: #fff;
+  border-color: #e2b3b3;
+  color: #b00020;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.list { display: grid; gap: 10px; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.cardText {
+  white-space: pre-wrap;
+  font-size: 15px;
+}
+
+.cardFoot {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.date { color: var(--muted); font-size: 12px; }
+
+.empty {
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+}
+
+.footer {
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.center {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.msg {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafafa;
+  white-space: pre-wrap;
+  color: #b00020;
 }
