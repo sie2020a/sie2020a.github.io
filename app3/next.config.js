@@ -3,14 +3,14 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
 
-  // GitHub Pagesでサブフォルダ配信するため（超重要）
-  basePath: "/app3_site",
-  assetPrefix: "/app3_site/",
+  // GitHub Pages: https://sie2020a.github.io/app3/ で配信する
+  basePath: "/app3",
+  assetPrefix: "/app3/",
 
-  // 静的書き出し
+  // 静的書き出し（GitHub Pages用）
   output: "export",
 
-  // exportだと画像最適化が面倒なのでOFF
+  // export時の画像最適化を無効化
   images: { unoptimized: true },
 };
 
