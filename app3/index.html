@@ -3,117 +3,262 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Diary Login</title>
+  <title>Diary</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; }
+    h1 { margin: 0 0 10px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 10px 0; }
     label { display:block; margin: 12px 0 6px; }
-    input { width: 100%; padding: 10px; font-size: 16px; }
-    button { padding: 10px 14px; font-size: 16px; margin-top: 12px; cursor:pointer; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
+    button { padding: 10px 14px; font-size: 16px; cursor:pointer; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px; }
     .row button { flex:1; }
-    .msg { margin-top: 14px; white-space: pre-wrap; }
-    .ok { color: #0a7; }
-    .ng { color: #c33; }
-    small { color:#666; }
+    .msg { white-space: pre-wrap; margin-top: 12px; }
+    .ok { color:#0a7; }
+    .ng { color:#c33; }
+    .muted { color:#666; font-size: 13px; }
+    .list .item { border: 1px solid #eee; border-radius: 10px; padding: 10px; margin: 10px 0; }
+    .item .foot { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top: 6px; }
+    .danger { background: #fff; border: 1px solid #f2b3b3; }
+    .danger:hover { background: #fff5f5; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .topbar code { background:#f5f5f5; padding: 2px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h1>Diary</h1>
-  <p><small>ログインして日記を開きます。</small></p>
-
-  <label>メールアドレス</label>
-  <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
-
-  <label>パスワード</label>
-  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
-
-  <div class="row">
-    <button id="btnLogin">ログイン</button>
-    <button id="btnSignup">新しいアカウントで登録</button>
+  <div class="topbar">
+    <h1>Diary</h1>
+    <div class="muted">status: <code id="status">booting</code></div>
   </div>
 
-  <button id="btnReset">パスワードを忘れた（リセットメール送信）</button>
+  <!-- LOGIN -->
+  <div id="loginCard" class="card" style="display:none;">
+    <div class="muted">ログインして日記を開きます。</div>
 
-  <div id="msg" class="msg"></div>
+    <label>メールアドレス</label>
+    <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
 
-  <script type="module">
-    // --- Firebase (CDN) ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    <label>パスワード</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
 
-    // ▼ここを diary-32180 の Webアプリ設定の値に置き換え
+    <div class="row">
+      <button id="btnLogin">ログイン</button>
+      <button id="btnSignup">新しいアカウントで登録</button>
+    </div>
+
+    <div class="row">
+      <button id="btnReset">パスワードを忘れた（リセットメール）</button>
+    </div>
+
+    <div id="msgLogin" class="msg"></div>
+  </div>
+
+  <!-- APP -->
+  <div id="appCard" class="card" style="display:none;">
+    <div class="topbar" style="margin-bottom:10px;">
+      <div class="muted">ログイン中: <code id="who"></code></div>
+      <button id="btnLogout" class="danger">ログアウト</button>
+    </div>
+
+    <label>今日のひとこと</label>
+    <input id="entry" placeholder="今日あったこと…" />
+
+    <div class="row">
+      <button id="btnAdd">追加</button>
+      <button id="btnReload">更新</button>
+    </div>
+
+    <div id="msgApp" class="msg"></div>
+
+    <div class="list" id="list"></div>
+  </div>
+
+  <!-- ✅ compat版：module問題を回避 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+  <script>
+    // ===== Firebase config =====
     const firebaseConfig = {
-  apiKey: "AIzaSyAEmWECKWJbjQyby8jRH-RJvm2371VQxSw",
-  authDomain: "diary-32180.firebaseapp.com",
-  projectId: "diary-32180",
-  storageBucket: "diary-32180.firebasestorage.app",
-  messagingSenderId: "975066690993",
-  appId: "1:975066690993:web:ad026fb50c3928089fb990",
-  measurementId: "G-Q4KDTMX2CL"
+      apiKey: "AIzaSyAEmWECKWJbjQyby8jRH-RJvm2371VQxSw",
+      authDomain: "diary-32180.firebaseapp.com",
+      projectId: "diary-32180",
+      storageBucket: "diary-32180.firebasestorage.app",
+      messagingSenderId: "975066690993",
+      appId: "1:975066690993:web:ad026fb50c3928089fb990",
+      measurementId: "G-Q4KDTMX2CL"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    // ===== UI =====
+    const $status = document.getElementById("status");
+
+    const $loginCard = document.getElementById("loginCard");
+    const $appCard   = document.getElementById("appCard");
 
     const $email = document.getElementById("email");
-    const $pass = document.getElementById("password");
-    const $msg  = document.getElementById("msg");
+    const $pass  = document.getElementById("password");
+    const $msgLogin = document.getElementById("msgLogin");
 
-    function show(text, ok=false){
-      $msg.textContent = text;
-      $msg.className = "msg " + (ok ? "ok" : "ng");
+    const $who = document.getElementById("who");
+    const $entry = document.getElementById("entry");
+    const $list  = document.getElementById("list");
+    const $msgApp = document.getElementById("msgApp");
+
+    function showMsg(el, text, ok=false){
+      el.textContent = text || "";
+      el.className = "msg " + (ok ? "ok" : "ng");
     }
 
-    // ログイン成功後に飛ばす先（app3 にする）
-    const NEXT_URL = "../app3/";
+    function setStatus(s){ $status.textContent = s; }
 
+    // ===== Auth state =====
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setStatus("logged-out");
+        $appCard.style.display = "none";
+        $loginCard.style.display = "block";
+        $who.textContent = "";
+        $list.innerHTML = "";
+        return;
+      }
+      setStatus("logged-in");
+      $loginCard.style.display = "none";
+      $appCard.style.display = "block";
+      $who.textContent = user.email || user.uid;
+      loadEntries();
+    });
+
+    // ===== Auth actions =====
     document.getElementById("btnLogin").addEventListener("click", async () => {
       const email = $email.value.trim();
       const pass  = $pass.value;
-
-      if(!email || !pass) return show("メールとパスワードを入れて。");
-
-      try{
-        await signInWithEmailAndPassword(auth, email, pass);
-        show("ログインOK。日記を開きます…", true);
-        location.href = NEXT_URL;
-      }catch(e){
-        show("ログイン失敗：\n" + e.code + "\n" + (e.message || ""));
+      if(!email || !pass) return showMsg($msgLogin, "メールとパスワードを入れて。");
+      try {
+        await auth.signInWithEmailAndPassword(email, pass);
+        showMsg($msgLogin, "ログインOK", true);
+      } catch(e) {
+        console.error(e);
+        showMsg($msgLogin, e.code + "\n" + e.message);
       }
     });
 
     document.getElementById("btnSignup").addEventListener("click", async () => {
       const email = $email.value.trim();
       const pass  = $pass.value;
-
-      if(!email || !pass) return show("メールとパスワードを入れて。");
-      if(pass.length < 6) return show("パスワードは6文字以上にして。");
-
-      try{
-        await createUserWithEmailAndPassword(auth, email, pass);
-        show("登録OK。そのまま日記を開きます…", true);
-        location.href = NEXT_URL;
-      }catch(e){
-        show("登録失敗：\n" + e.code + "\n" + (e.message || ""));
+      if(!email || !pass) return showMsg($msgLogin, "メールとパスワードを入れて。");
+      if(pass.length < 6) return showMsg($msgLogin, "パスワードは6文字以上。");
+      try {
+        await auth.createUserWithEmailAndPassword(email, pass);
+        showMsg($msgLogin, "登録OK", true);
+      } catch(e) {
+        console.error(e);
+        showMsg($msgLogin, e.code + "\n" + e.message);
       }
     });
 
     document.getElementById("btnReset").addEventListener("click", async () => {
       const email = $email.value.trim();
-      if(!email) return show("リセットしたいメールアドレスを入れて。");
-
-      try{
-        await sendPasswordResetEmail(auth, email);
-        show("リセットメールを送った。受信箱を見て。", true);
-      }catch(e){
-        show("送信失敗：\n" + e.code + "\n" + (e.message || ""));
+      if(!email) return showMsg($msgLogin, "リセットしたいメールを入れて。");
+      try {
+        await auth.sendPasswordResetEmail(email);
+        showMsg($msgLogin, "リセットメール送信OK。受信箱見て。", true);
+      } catch(e) {
+        console.error(e);
+        showMsg($msgLogin, e.code + "\n" + e.message);
       }
     });
+
+    document.getElementById("btnLogout").addEventListener("click", async () => {
+      await auth.signOut();
+    });
+
+    // ===== Diary (per-user) =====
+    function colRef(){
+      const user = auth.currentUser;
+      return db.collection("entries").where("uid","==", user.uid).orderBy("createdAt","desc");
+    }
+
+    function fmt(ts){
+      if(!ts) return "";
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      return `${y}-${m}-${day} ${hh}:${mm}`;
+    }
+
+    async function loadEntries(){
+      try{
+        showMsg($msgApp, "");
+        $list.innerHTML = "";
+        const snap = await colRef().get();
+        if(snap.empty){
+          $list.innerHTML = `<div class="muted">まだ日記がありません</div>`;
+          return;
+        }
+        snap.forEach(doc => {
+          const x = doc.data();
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div style="white-space:pre-wrap;">${escapeHtml(x.text || "")}</div>
+            <div class="foot">
+              <small class="muted">${fmt(x.createdAt)}</small>
+              <button class="danger">削除</button>
+            </div>
+          `;
+          div.querySelector("button").addEventListener("click", async () => {
+            if(!confirm("削除する？")) return;
+            await db.collection("entries").doc(doc.id).delete();
+            loadEntries();
+          });
+          $list.appendChild(div);
+        });
+      }catch(e){
+        console.error(e);
+        showMsg($msgApp, e.code + "\n" + e.message);
+      }
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, (c) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    document.getElementById("btnReload").addEventListener("click", loadEntries);
+
+    document.getElementById("btnAdd").addEventListener("click", async () => {
+      const user = auth.currentUser;
+      const v = ($entry.value || "").trim();
+      if(!v) return;
+
+      try{
+        await db.collection("entries").add({
+          uid: user.uid,
+          text: v,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        $entry.value = "";
+        loadEntries();
+      }catch(e){
+        console.error(e);
+        showMsg($msgApp, e.code + "\n" + e.message);
+      }
+    });
+
+    $entry.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") document.getElementById("btnAdd").click();
+    });
+
+    setStatus("ready");
   </script>
 </body>
 </html>
