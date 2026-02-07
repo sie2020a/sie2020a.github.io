@@ -21,20 +21,35 @@
   <h1>Diary</h1>
   <p><small>ログインして日記を開きます。</small></p>
 
-  <label>メールアドレス</label>
-  <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
 
-  <label>パスワード</label>
-  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+    <!-- ログイン -->
+    <section class="card" id="loginCard">
+      <h2>ログイン</h2>
+      <p class="muted">メールアドレスとパスワードでログインしてください。</p>
 
-  <div class="row">
-    <button id="btnLogin">ログイン</button>
-    <button id="btnSignup">新しいアカウントで登録</button>
-  </div>
+      <div class="grid2">
+        <div>
+          <label class="label">メールアドレス</label>
+          <input class="input" id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
 
-  <button id="btnReset">パスワードを忘れた（リセットメール送信）</button>
+        <div>
+          <label class="label">パスワード</label>
+          <div class="pwWrap">
+            <input class="input" id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+            <button class="pwEye" id="btnPwEye" type="button" aria-label="パスワード表示切替">👁️</button>
+          </div>
+        </div>
+      </div>
 
-  <div id="msg" class="msg"></div>
+      <div class="row mt16 gap">
+        <button class="btn primary" id="btnLogin" type="button">ログイン</button>
+        <button class="btn" id="btnSignup" type="button">新アカウントを作る</button>
+        <button class="btn" id="btnReset" type="button">パスワード忘れた</button>
+      </div>
+
+      <div class="error" id="authError"></div>
+    </section>
 
   <script type="module">
     // --- Firebase (CDN) ---
