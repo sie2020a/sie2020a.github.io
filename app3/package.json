@@ -1,17 +1,17 @@
 {
   "name": "app3",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "export": "next export -o ../app3_site",
-    "build:gh": "next build && next export -o ../app3_site"
+    "export": "next export -o ../app3",
+    "build:gh": "next build && next export -o ../app3"
   },
   "dependencies": {
     "firebase": "^10.0.0",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "next": "^14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }
