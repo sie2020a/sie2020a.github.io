@@ -1,124 +1,72 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { auth } from "../firebase";
+import { useState } from "react";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { initializeApp } from "firebase/app";
 
-export default function LoginPage() {
-  const router = useRouter();
+const firebaseConfig = {
+  apiKey: "AIzaSyAEmWECKWJbjQyby8jRH-RJvm2371VQxSw",
+  authDomain: "diary-32180.firebaseapp.com",
+  projectId: "diary-32180",
+  storageBucket: "diary-32180.firebasestorage.app",
+  messagingSenderId: "975066690993",
+  appId: "1:975066690993:web:ad026fb50c3928089fb990",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+export default function Login() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  useEffect(() => {
-    // すでにログイン済みなら日記へ
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) router.replace("/");
-    });
-    return () => unsub();
-  }, [router]);
-
   const login = async () => {
-    setMsg("");
-    const e = email.trim();
-    if (!e || !pass) return setMsg("メールとパスワードを入れて。");
-    setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, e, pass);
-      router.replace("/");
-    } catch (err) {
-      setMsg(err?.code ? `${err.code}\n${err.message || ""}` : String(err));
-    } finally {
-      setBusy(false);
+      await signInWithEmailAndPassword(auth, email, pass);
+      window.location.href = "/app3/";
+    } catch (e) {
+      console.error(e);
+      setMsg(e.code + " " + e.message);
     }
   };
 
   const signup = async () => {
-    setMsg("");
-    const e = email.trim();
-    if (!e || !pass) return setMsg("メールとパスワードを入れて。");
-    if (pass.length < 6) return setMsg("パスワードは6文字以上にして。");
-    setBusy(true);
     try {
-      await createUserWithEmailAndPassword(auth, e, pass);
-      router.replace("/");
-    } catch (err) {
-      setMsg(err?.code ? `${err.code}\n${err.message || ""}` : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const reset = async () => {
-    setMsg("");
-    const e = email.trim();
-    if (!e) return setMsg("リセットしたいメールアドレスを入れて。");
-    setBusy(true);
-    try {
-      await sendPasswordResetEmail(auth, e);
-      setMsg("リセットメール送信OK。受信箱を見て。");
-    } catch (err) {
-      setMsg(err?.code ? `${err.code}\n${err.message || ""}` : String(err));
-    } finally {
-      setBusy(false);
+      await createUserWithEmailAndPassword(auth, email, pass);
+      window.location.href = "/app3/";
+    } catch (e) {
+      console.error(e);
+      setMsg(e.code + " " + e.message);
     }
   };
 
   return (
-    <div className="wrap">
-      <header className="header">
-        <div>
-          <h1 className="title">Diary</h1>
-          <p className="sub">ログインして日記を開きます</p>
-        </div>
-      </header>
+    <div style={{ maxWidth: 400, margin: "40px auto", fontFamily: "sans-serif" }}>
+      <h1>ログイン</h1>
 
-      <main className="main">
-        <div className="formCol">
-          <label className="label">メールアドレス</label>
-          <input
-            className="input"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
+      <input
+        placeholder="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-          <label className="label">パスワード</label>
-          <input
-            className="input"
-            type="password"
-            autoComplete="current-password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") login();
-            }}
-          />
+      <input
+        placeholder="password"
+        type="password"
+        value={pass}
+        onChange={(e) => setPass(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-          <div className="row">
-            <button className="btn primary" onClick={login} disabled={busy}>
-              ログイン
-            </button>
-            <button className="btn" onClick={signup} disabled={busy}>
-              新しいアカウントで登録
-            </button>
-          </div>
+      <button onClick={login} style={{ width: "100%", marginBottom: 10 }}>
+        ログイン
+      </button>
 
-          <button className="btn" onClick={reset} disabled={busy}>
-            パスワードを忘れた（リセットメール送信）
-          </button>
+      <button onClick={signup} style={{ width: "100%" }}>
+        新規登録
+      </button>
 
-          {msg ? <pre className="msg">{msg}</pre> : null}
-        </div>
-      </main>
+      <div style={{ marginTop: 20, color: "red", whiteSpace: "pre-wrap" }}>{msg}</div>
     </div>
   );
 }
