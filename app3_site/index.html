@@ -5,50 +5,48 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Diary Login</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;padding:24px;max-width:520px;margin:0 auto;}
-    h1{margin:0 0 14px;}
-    .row{display:flex;gap:10px;margin:10px 0;}
-    input{flex:1;padding:10px;font-size:16px;}
-    button{padding:10px 12px;font-size:14px;cursor:pointer;}
-    .hint{color:#555;font-size:13px;margin-top:6px;}
-    .msg{margin-top:12px;white-space:pre-wrap;}
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
+    label { display:block; margin: 12px 0 6px; }
+    input { width: 100%; padding: 10px; font-size: 16px; }
+    button { padding: 10px 14px; font-size: 16px; margin-top: 12px; cursor:pointer; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .row button { flex:1; }
+    .msg { margin-top: 14px; white-space: pre-wrap; }
+    .ok { color: #0a7; }
+    .ng { color: #c33; }
+    small { color:#666; }
   </style>
 </head>
 <body>
   <h1>Diary</h1>
+  <p><small>ログインして日記を開きます。</small></p>
+
+  <label>メールアドレス</label>
+  <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+
+  <label>パスワード</label>
+  <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
 
   <div class="row">
-    <input id="email" type="email" placeholder="メールアドレス" autocomplete="email">
-  </div>
-  <div class="row">
-    <input id="pass" type="password" placeholder="パスワード" autocomplete="current-password">
+    <button id="btnLogin">ログイン</button>
+    <button id="btnSignup">新しいアカウントで登録</button>
   </div>
 
-  <div class="row">
-    <button id="loginBtn">ログイン</button>
-    <button id="signupBtn">新規登録</button>
-  </div>
-  <div class="row">
-    <button id="resetBtn">パスワードを忘れた</button>
-  </div>
-
-  <div class="hint">
-    ログイン成功したら <code>/app3/</code> に移動します。
-  </div>
+  <button id="btnReset">パスワードを忘れた（リセットメール送信）</button>
 
   <div id="msg" class="msg"></div>
 
   <script type="module">
-    // Firebase v9+ modular (CDN)
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    // --- Firebase (CDN) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import {
       getAuth,
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
       sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-    // ▼ここをあなたの Firebase config に置き換え（GitHubに晒すなら後で環境変数化推奨）
+    // ▼ここを diary-32180 の Webアプリ設定の値に置き換え
     const firebaseConfig = {
       apiKey: "ここ",
       authDomain: "diary-32180.firebaseapp.com",
@@ -62,42 +60,59 @@
     const auth = getAuth(app);
 
     const $email = document.getElementById("email");
-    const $pass = document.getElementById("pass");
+    const $pass = document.getElementById("password");
     const $msg  = document.getElementById("msg");
 
-    function say(t){ $msg.textContent = t; }
+    function show(text, ok=false){
+      $msg.textContent = text;
+      $msg.className = "msg " + (ok ? "ok" : "ng");
+    }
 
-    document.getElementById("loginBtn").onclick = async () => {
-      say("ログイン中...");
-      try {
-        await signInWithEmailAndPassword(auth, $email.value.trim(), $pass.value);
-        location.href = "/app3/"; // 成功したら app3 へ
-      } catch (e) {
-        say("ログイン失敗: " + e.code + "\n" + e.message);
-      }
-    };
+    // ログイン成功後に飛ばす先（app3 にする）
+    const NEXT_URL = "../app3/";
 
-    document.getElementById("signupBtn").onclick = async () => {
-      say("新規登録中...");
-      try {
-        await createUserWithEmailAndPassword(auth, $email.value.trim(), $pass.value);
-        location.href = "/app3/";
-      } catch (e) {
-        say("新規登録失敗: " + e.code + "\n" + e.message);
-      }
-    };
-
-    document.getElementById("resetBtn").onclick = async () => {
+    document.getElementById("btnLogin").addEventListener("click", async () => {
       const email = $email.value.trim();
-      if (!email) return say("先にメールアドレスを入力して。");
-      say("リセットメール送信中...");
-      try {
-        await sendPasswordResetEmail(auth, email);
-        say("送った。メール見て。迷惑メールも。");
-      } catch (e) {
-        say("送信失敗: " + e.code + "\n" + e.message);
+      const pass  = $pass.value;
+
+      if(!email || !pass) return show("メールとパスワードを入れて。");
+
+      try{
+        await signInWithEmailAndPassword(auth, email, pass);
+        show("ログインOK。日記を開きます…", true);
+        location.href = NEXT_URL;
+      }catch(e){
+        show("ログイン失敗：\n" + e.code + "\n" + (e.message || ""));
       }
-    };
+    });
+
+    document.getElementById("btnSignup").addEventListener("click", async () => {
+      const email = $email.value.trim();
+      const pass  = $pass.value;
+
+      if(!email || !pass) return show("メールとパスワードを入れて。");
+      if(pass.length < 6) return show("パスワードは6文字以上にして。");
+
+      try{
+        await createUserWithEmailAndPassword(auth, email, pass);
+        show("登録OK。そのまま日記を開きます…", true);
+        location.href = NEXT_URL;
+      }catch(e){
+        show("登録失敗：\n" + e.code + "\n" + (e.message || ""));
+      }
+    });
+
+    document.getElementById("btnReset").addEventListener("click", async () => {
+      const email = $email.value.trim();
+      if(!email) return show("リセットしたいメールアドレスを入れて。");
+
+      try{
+        await sendPasswordResetEmail(auth, email);
+        show("リセットメールを送った。受信箱を見て。", true);
+      }catch(e){
+        show("送信失敗：\n" + e.code + "\n" + (e.message || ""));
+      }
+    });
   </script>
 </body>
 </html>
